@@ -26,25 +26,25 @@ TBF
 
 ## High-level design
 
-![HLD](https://git.yiilab.com/study/python_bot_u/-/blob/develope/readme_images/HLD.png)
+![HLD](./readme_images/HLD.png)
 
 ## Схема БД проекта
 
-![DB](https://git.yiilab.com/study/python_bot_u/-/blob/develope/readme_images/database.png)
+![DB](./readme_images/database.png)
 
 ## Use cases
 
 1. Регистрация пользователя в боте
 
-    ![UC_registration](https://git.yiilab.com/study/python_bot_u/-/blob/develope/readme_images/uc_registration.png)
+    ![UC_registration](./readme_images/uc_registration.png)
 
 2. Добавление пользователем нового почтового ящика для отслеживания
 
-    ![UC_add_email_box](https://git.yiilab.com/study/python_bot_u/-/blob/develope/readme_images/uc_add_email_box.png)
+    ![UC_add_email_box](./readme_images/uc_add_email_box.png)
 
 3. Получение пользователем нового email-сообщения от бота
 
-    ![UC_new_email_message](https://git.yiilab.com/study/python_bot_u/-/blob/develope/readme_images/uc_new_email_message.png)
+    ![UC_new_email_message](./readme_images/uc_new_email_message.png)
 
 ## Структура веток проекта
 
