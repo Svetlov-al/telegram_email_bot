@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "email-bot"
+version = "0.1.0"
+description = ""
+authors = ["Artem Menshikov <a.menshikov1989@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+django = "4.1"
+django-ninja = "^0.22.2"
+psycopg2-binary = "^2.9.7"
+gunicorn = "^21.2.0"
+redis = "^5.0.0"
+celery = "^5.3.4"
+aiogram = "2.14.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
