@@ -17,3 +17,6 @@ makemigrations:
 
 collectstatic:
 	docker compose exec web python manage.py collectstatic
+
+createsuperuser:
+	docker compose exec web python manage.py createsuperuser
