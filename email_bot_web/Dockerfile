@@ -14,5 +14,4 @@ RUN poetry config virtualenvs.create false \
 
 COPY ./email_bot_web .
 
-# CMD ["uvicorn", "email_bot_web.asgi:application", "--host", "0.0.0.0", "--port", "8000"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["./entrypoint.sh"]
