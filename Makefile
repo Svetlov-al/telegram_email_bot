@@ -9,11 +9,8 @@ up-d:
 down:
 	docker compose down
 
-up-b:
-	docker compose up --build
-
-up-bd:
-	docker compose up --build -d
+build:
+	docker compose build
 
 migrate:
 	docker compose exec web python manage.py migrate

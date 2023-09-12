@@ -50,7 +50,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'email_bot_web.wsgi.application'
-ASGI_APPLICATION = 'email_bot_web.asgi.application'
 
 DATABASES = {
     'default': {
