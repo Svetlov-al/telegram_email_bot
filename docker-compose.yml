@@ -11,8 +11,6 @@ services:
     volumes:
       - email_bot_static_value:/app/web-static/
       - email_bot_media_value:/app/web-media/
-    networks:
-      - email_bot_network
     depends_on:
       db:
         condition: service_healthy
@@ -29,12 +27,8 @@ services:
     container_name: db
     ports:
       - "5432:5432"
-    networks:
-      - email_bot_network
     volumes:
       - email_bot_pgdata:/var/lib/postgresql/data/
-    expose:
-      - 5432
     env_file:
       - ./.env
     healthcheck:
@@ -48,8 +42,6 @@ services:
     image: "redis:alpine"
     restart: always
     container_name: redis
-    networks:
-      - email_bot_network
     volumes:
       - email_bot_redis_data:/data
     expose:
@@ -69,8 +61,6 @@ services:
         dockerfile: ./email_bot_web/Dockerfile
       container_name: celery_worker
       command: celery -A email_bot_web worker --loglevel=info
-      networks:
-        - email_bot_network
       depends_on:
         - web
       env_file:
@@ -82,31 +72,22 @@ services:
         dockerfile: ./email_bot_web/Dockerfile
       container_name: celery_beat
       command: celery -A email_bot_web beat --loglevel=info
-      networks:
-        - email_bot_network
       depends_on:
         - celery_worker
       env_file:
       - .env
   
-  bot:
-    build:
-      context: .
-      dockerfile: ./bot/Dockerfile
-    restart: always
-    container_name: tg_bot
-    networks:
-      - email_bot_network
-    depends_on:
-      - web
-    env_file:
-      - ./.env
+  # bot:
+  #   build:
+  #     context: .
+  #     dockerfile: ./bot/Dockerfile
+  #   restart: always
+  #   container_name: tg_bot
+  #   depends_on:
+  #     - web
+  #   env_file:
+  #     - ./.env
 
-
-networks:
-  email_bot_network:
-    name: email_bot_network
-  
 volumes:
   email_bot_pgdata:
     name: email_bot_pgdata
