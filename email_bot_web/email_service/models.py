@@ -84,6 +84,7 @@ class BoxFilter(models.Model):
         max_length=100,
         verbose_name='Имя фильтра',
         null=True,
+        blank=True,
     )
 
     class Meta:

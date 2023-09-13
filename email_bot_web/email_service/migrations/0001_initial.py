@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('filter_value', models.CharField(max_length=256, verbose_name='Значение фильтра')),
-                ('filter_name', models.CharField(max_length=100, null=True, verbose_name='Имя фильтра')),
+                ('filter_name', models.CharField(blank=True, max_length=100, null=True, verbose_name='Имя фильтра')),
                 ('box_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='filters', to='email_service.emailbox', verbose_name='Почтовый ящик')),
             ],
             options={
