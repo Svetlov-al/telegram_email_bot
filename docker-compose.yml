@@ -80,7 +80,7 @@ services:
         - redis
       env_file:
       - .env
-  
+
   # bot:
   #   build:
   #     context: .
