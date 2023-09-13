@@ -19,7 +19,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./.env
+      - .env
 
   db:
     image: postgres:15-alpine
@@ -30,7 +30,7 @@ services:
     volumes:
       - email_bot_pgdata:/var/lib/postgresql/data/
     env_file:
-      - ./.env
+      - .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -63,6 +63,8 @@ services:
       command: celery -A email_bot_web worker --loglevel=info
       depends_on:
         - web
+        - db
+        - redis
       env_file:
       - .env
 
@@ -73,7 +75,9 @@ services:
       container_name: celery_beat
       command: celery -A email_bot_web beat --loglevel=info
       depends_on:
-        - celery_worker
+        - web
+        - db
+        - redis
       env_file:
       - .env
   

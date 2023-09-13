@@ -13,4 +13,6 @@ RUN poetry config virtualenvs.create false \
 
 COPY ./email_bot_web .
 
+RUN chmod +x entrypoint.sh
+
 ENTRYPOINT ["./entrypoint.sh"]
