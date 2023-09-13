@@ -17,9 +17,10 @@ class Migration(migrations.Migration):
             name='EmailService',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('service_slug', models.SlugField(unique=True, verbose_name='Slug сервиса')),
-                ('service_address', models.CharField(max_length=255, verbose_name='Адрес сервера')),
-                ('service_port', models.PositiveIntegerField(verbose_name='Порт сервера')),
+                ('title', models.CharField(max_length=100, unique=True, verbose_name='Название')),
+                ('slug', models.SlugField(unique=True, verbose_name='Slug сервиса')),
+                ('address', models.CharField(max_length=256, verbose_name='Адрес сервера')),
+                ('port', models.PositiveIntegerField(verbose_name='Порт сервера')),
             ],
             options={
                 'verbose_name': 'Почтовый сервис',
@@ -31,7 +32,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('email_username', models.CharField(max_length=64, verbose_name='Имя пользователя')),
-                ('email_password', models.CharField(max_length=255, verbose_name='Пароль')),
+                ('email_password', models.CharField(max_length=256, verbose_name='Пароль')),
                 ('email_service', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='boxes', to='email_service.emailservice', verbose_name='Почтовый сервис')),
                 ('user_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='boxes', to='user.botuser', verbose_name='Пользователь')),
             ],
@@ -44,7 +45,7 @@ class Migration(migrations.Migration):
             name='BoxFilter',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('filter_value', models.CharField(max_length=255, verbose_name='Значение фильтра')),
+                ('filter_value', models.CharField(max_length=256, verbose_name='Значение фильтра')),
                 ('filter_name', models.CharField(max_length=100, null=True, verbose_name='Имя фильтра')),
                 ('box_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='filters', to='email_service.emailbox', verbose_name='Почтовый ящик')),
             ],

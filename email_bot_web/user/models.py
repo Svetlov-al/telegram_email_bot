@@ -6,7 +6,7 @@ class BotUser(models.Model):
 
     telegram_id = models.BigIntegerField(
         verbose_name='ID телеграм',
-        unique=True,
+        primary_key=True,
     )
 
     is_active = models.BooleanField(
@@ -19,4 +19,4 @@ class BotUser(models.Model):
         verbose_name_plural = 'Пользователи бота'
 
     def __str__(self) -> str:
-        return f'{self.telegram_id}'
+        return str(self.telegram_id)

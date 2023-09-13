@@ -5,15 +5,20 @@ from user.models import BotUser
 class EmailService(models.Model):
     """Модель почтового сервера."""
 
-    service_slug = models.SlugField(
+    title = models.CharField(
+        max_length=100,
+        verbose_name='Название',
+        unique=True,
+    )
+    slug = models.SlugField(
         verbose_name='Slug сервиса',
         unique=True,
     )
-    service_address = models.CharField(
-        max_length=255,
+    address = models.CharField(
+        max_length=256,
         verbose_name='Адрес сервера',
     )
-    service_port = models.PositiveIntegerField(
+    port = models.PositiveIntegerField(
         verbose_name='Порт сервера',
     )
 
@@ -22,7 +27,7 @@ class EmailService(models.Model):
         verbose_name_plural = 'Почтовые сервисы'
 
     def __str__(self) -> str:
-        return f'{self.service_slug}'
+        return self.title
 
 
 class EmailBox(models.Model):
@@ -48,7 +53,7 @@ class EmailBox(models.Model):
     )
 
     email_password = models.CharField(
-        max_length=255,
+        max_length=256,
         verbose_name='Пароль',
     )
 
@@ -57,7 +62,7 @@ class EmailBox(models.Model):
         verbose_name_plural = 'Почтовые ящики'
 
     def __str__(self) -> str:
-        return f'{self.email_username}'
+        return self.email_username
 
 
 class BoxFilter(models.Model):
@@ -71,7 +76,7 @@ class BoxFilter(models.Model):
     )
 
     filter_value = models.CharField(
-        max_length=255,
+        max_length=256,
         verbose_name='Значение фильтра',
     )
 
@@ -86,4 +91,4 @@ class BoxFilter(models.Model):
         verbose_name_plural = 'Фильтры'
 
     def __str__(self) -> str:
-        return f'{self.filter_value}'
+        return self.filter_value

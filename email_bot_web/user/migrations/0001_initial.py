@@ -14,8 +14,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='BotUser',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('telegram_id', models.BigIntegerField(unique=True, verbose_name='ID телеграм')),
+                ('telegram_id', models.BigIntegerField(primary_key=True, serialize=False, verbose_name='ID телеграм')),
                 ('is_active', models.BooleanField(default=True, verbose_name='Активность')),
             ],
             options={
