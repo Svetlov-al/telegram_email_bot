@@ -12,26 +12,11 @@ class EmailBoxInline(admin.TabularInline):
 class UserAdmin(admin.ModelAdmin):
     """Админ-панель модели User."""
 
-    list_display = (
-        'telegram_id',
-        'is_active',
-    )
-
-    list_editable = (
-        'is_active',
-    )
-
-    list_display_links = (
-        'telegram_id',
-    )
-
-    list_filter = (
-        'is_active',
-    )
-
-    search_fields = (
-        'telegram_id',
-    )
+    list_display = ('telegram_id', 'is_active')
+    list_editable = ('is_active',)
+    list_display_links = ('telegram_id',)
+    list_filter = ('is_active',)
+    search_fields = ('telegram_id',)
 
     search_help_text = 'Поиск по телеграм ID'
 
