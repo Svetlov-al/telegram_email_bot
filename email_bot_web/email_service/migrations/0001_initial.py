@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             name='EmailService',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=100, unique=True, verbose_name='Название')),
+                ('title', models.CharField(max_length=128, unique=True, verbose_name='Название')),
                 ('slug', models.SlugField(unique=True, verbose_name='Slug сервиса')),
                 ('address', models.CharField(max_length=256, verbose_name='Адрес сервера')),
                 ('port', models.PositiveIntegerField(verbose_name='Порт сервера')),
@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('filter_value', models.CharField(max_length=256, verbose_name='Значение фильтра')),
-                ('filter_name', models.CharField(blank=True, max_length=100, null=True, verbose_name='Имя фильтра')),
+                ('filter_name', models.CharField(blank=True, max_length=128, null=True, verbose_name='Имя фильтра')),
                 ('box_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='filters', to='email_service.emailbox', verbose_name='Почтовый ящик')),
             ],
             options={

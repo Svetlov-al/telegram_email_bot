@@ -6,7 +6,7 @@ class EmailService(models.Model):
     """Модель почтового сервера."""
 
     title = models.CharField(
-        max_length=100,
+        max_length=128,
         verbose_name='Название',
         unique=True,
     )
@@ -81,7 +81,7 @@ class BoxFilter(models.Model):
     )
 
     filter_name = models.CharField(
-        max_length=100,
+        max_length=128,
         verbose_name='Имя фильтра',
         null=True,
         blank=True,
