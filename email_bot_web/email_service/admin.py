@@ -3,6 +3,11 @@ from email_service.models import BoxFilter, EmailBox, EmailService
 
 
 class BoxFilterInline(admin.TabularInline):
+    """
+    Встроенный интерфейс для модели BoxFilter.
+
+    Позволяет редактировать фильтры прямо в форме почтового ящика.
+    """
     model = BoxFilter
     extra = 1
 
@@ -19,7 +24,7 @@ class BoxAdmin(admin.ModelAdmin):
 
     list_per_page = 50
 
-    inlines = [BoxFilterInline]
+    inlines = (BoxFilterInline,)
 
     def display_user(self, obj: EmailBox) -> str:
         return obj.user_id.telegram_id

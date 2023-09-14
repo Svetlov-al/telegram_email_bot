@@ -4,6 +4,11 @@ from user.models import BotUser
 
 
 class EmailBoxInline(admin.TabularInline):
+    """
+    Встроенный интерфейс админки для модели EmailBox.
+
+    Позволяет управлять экземплярами EmailBox прямо в форме родительской модели.
+    """
     model = EmailBox
     extra = 1
 
@@ -22,14 +27,4 @@ class UserAdmin(admin.ModelAdmin):
 
     list_per_page = 50
 
-    inlines = [EmailBoxInline]
-
-    fieldsets = (
-        (None, {
-            'fields': ('telegram_id', 'is_active'),
-            'description': {
-                'ID Телеграм': 'Уникальный идентификатор пользователя в Telegram.',
-                'Активность': 'Указывает, активен ли пользователь.'
-            }
-        }),
-    )
+    inlines = (EmailBoxInline,)
