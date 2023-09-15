@@ -15,7 +15,7 @@ class EmailService(models.Model):
         verbose_name_plural = 'Почтовые сервисы'
 
     def __str__(self) -> str:
-        return str(self.title)
+        return self.title
 
 
 class EmailBox(models.Model):
@@ -32,7 +32,7 @@ class EmailBox(models.Model):
         verbose_name_plural = 'Почтовые ящики'
 
     def __str__(self) -> str:
-        return str(self.email_username)
+        return self.email_username
 
 
 class BoxFilter(models.Model):
@@ -47,4 +47,4 @@ class BoxFilter(models.Model):
         verbose_name_plural = 'Фильтры'
 
     def __str__(self) -> str:
-        return str(self.filter_value)
+        return self.filter_value
