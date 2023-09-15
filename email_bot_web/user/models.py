@@ -4,15 +4,8 @@ from django.db import models
 class BotUser(models.Model):
     """Модель пользователя."""
 
-    telegram_id = models.BigIntegerField(
-        verbose_name='ID телеграм',
-        primary_key=True,
-    )
-
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name='Активность',
-    )
+    telegram_id = models.BigIntegerField(verbose_name='ID телеграм', primary_key=True)
+    is_active = models.BooleanField(default=True, verbose_name='Активность')
 
     class Meta:
         verbose_name = 'Пользователь бота'
