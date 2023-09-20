@@ -1,5 +1,5 @@
 from django.contrib import admin
-from email_service.models import EmailBox
+from email_domain.models import EmailBox
 from user.models import BotUser
 
 

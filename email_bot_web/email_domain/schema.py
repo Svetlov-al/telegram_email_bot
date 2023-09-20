@@ -91,17 +91,11 @@ class EmailBoxOutputSchema(Schema):
 
     @classmethod
     def from_orm(cls, obj: EmailBox) -> 'EmailBoxOutputSchema':
-        email_service = EmailServiceSchema.from_orm(obj.email_service)
-
-        all_filters_list = list(obj.filters.all())
-
-        filters = [BoxFilterSchema.from_orm(filter_obj) for filter_obj in all_filters_list]
-
         return cls(
             user_id=obj.user_id.telegram_id,
-            email_service=email_service,
+            email_service=EmailServiceSchema.from_orm(obj.email_service),
             email_username=obj.email_username,
-            filters=filters
+            filters=[BoxFilterSchema.from_orm(filter_obj) for filter_obj in obj.filters.all()]
         )
 
 
