@@ -7,8 +7,8 @@ from api.services.exceptions import (
     EmailServicesNotFoundError,
 )
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from email_domain.models import EmailBox
-from email_domain.schema import (
+from email_service.models import EmailBox
+from email_service.schema import (
     EmailBoxCreateSchema,
     EmailBoxOutputSchema,
     EmailServiceSchema,

@@ -7,15 +7,15 @@ from api.services.exceptions import (
     EmailBoxWithFiltersCreationError,
     EmailServicesNotFoundError,
 )
-from django.http import HttpRequest
-from email_domain.schema import (
+from django.http import HttpRequest, JsonResponse
+from email_service.schema import (
     EmailBoxCreateSchema,
     EmailBoxOutputSchema,
     EmailBoxRequestSchema,
     EmailServiceSchema,
     ErrorSchema,
 )
-from ninja import Router, responses
+from ninja import Router
 
 emails = EmailBoxService
 filters = BoxFilterService
@@ -23,39 +23,50 @@ filters = BoxFilterService
 router_email = Router(tags=['Почтовые ящики'])
 
 
-@router_email.post('/emailboxes',
-                   response={
-                       HTTPStatus.CREATED: dict,
-                       HTTPStatus.BAD_REQUEST: ErrorSchema},
-                   summary='Создание почтового ящика')
+@router_email.post(
+    '/',
+    response={
+        HTTPStatus.CREATED: dict,
+        HTTPStatus.BAD_REQUEST: ErrorSchema
+    },
+    summary='Создание почтового ящика',
+)
 async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
     try:
         await emails.create_email_box_with_filters(data)
-        return responses.JsonResponse({'success': 'Email box created successfully'}, status=HTTPStatus.CREATED)
+        return JsonResponse({'success': 'Email box created successfully'}, status=HTTPStatus.CREATED)
     except EmailBoxWithFiltersCreationError as e:
-        return responses.JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
 
 
-@router_email.post('/emailboxes/info',
-                   response={HTTPStatus.OK: EmailBoxOutputSchema,
-                             HTTPStatus.NOT_FOUND: ErrorSchema},
-                   summary='Получение информации о почтовом ящике по username для конкретного пользователя')
+@router_email.post(
+    '/info',
+    response={
+        HTTPStatus.OK: EmailBoxOutputSchema,
+        HTTPStatus.NOT_FOUND: ErrorSchema
+    },
+    summary='Получение информации о почтовом ящике по username для конкретного пользователя',
+)
 async def get_emailbox_by_username_for_user(request: HttpRequest, data: EmailBoxRequestSchema):
     try:
         email_box_data = await emails.get_email_box_by_username_for_user(data.telegram_id,
                                                                          data.email_username)
         return EmailBoxOutputSchema.from_orm(email_box_data)
     except EmailBoxByUsernameNotFoundError as e:
-        return responses.JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
 
 
-@router_email.get('/services',
-                  response={
-                      HTTPStatus.OK: list[EmailServiceSchema],
-                      HTTPStatus.NOT_FOUND: ErrorSchema},
-                  summary='Получение всех сервисов')
+@router_email.get(
+    '/services',
+    response={
+        HTTPStatus.OK: list[EmailServiceSchema],
+        HTTPStatus.NOT_FOUND: ErrorSchema
+    },
+    summary='Получение всех сервисов',
+)
 async def get_services(request: HttpRequest):
     try:
-        return await emails.get_all_services()
+        services = await emails.get_all_services()
+        return services
     except EmailServicesNotFoundError:
-        return responses.JsonResponse({'detail': 'Services not found'}, status=HTTPStatus.NOT_FOUND)
+        return JsonResponse({'detail': 'Services not found'}, status=HTTPStatus.NOT_FOUND)

@@ -5,6 +5,6 @@ from ninja import NinjaAPI
 
 api = NinjaAPI(title='EmailTelegramBot')
 
-api.add_router('/', router_user)
-api.add_router('/', router_email)
-api.add_router('/', router_filter)
+api.add_router('/users', router_user)
+api.add_router('/emailboxes', router_email)
+api.add_router('/filters', router_filter)

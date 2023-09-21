@@ -1,8 +1,8 @@
 from api.repositories.repositories import BoxFilterRepository, EmailBoxRepository
 from api.services.exceptions import BoxFilterCreationError, BoxFiltersNotFoundError
 from django.core.exceptions import ObjectDoesNotExist
-from email_domain.models import BoxFilter
-from email_domain.schema import BoxFilterSchema
+from email_service.models import BoxFilter
+from email_service.schema import BoxFilterSchema
 from ninja.errors import ValidationError
 
 box_filter_repo = BoxFilterRepository

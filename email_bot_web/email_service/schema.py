@@ -1,4 +1,4 @@
-from email_domain.models import BoxFilter, EmailBox, EmailService
+from email_service.models import BoxFilter, EmailBox, EmailService
 from ninja import Schema
 
 
