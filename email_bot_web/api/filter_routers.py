@@ -44,7 +44,7 @@ async def create_filter_for_box(request: HttpRequest, data: CreateBoxFilterReque
 
 
 @router_filter.post(
-    '/',
+    '',
     response={
         HTTPStatus.OK: list[BoxFilterSchema],
         HTTPStatus.NOT_FOUND: ErrorSchema

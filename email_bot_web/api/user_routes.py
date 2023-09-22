@@ -19,7 +19,7 @@ router_user = Router(tags=['Пользователи'])
 
 
 @router_user.post(
-    '/',
+    '',
     response={HTTPStatus.CREATED: BotUserOutSchema,
               HTTPStatus.BAD_REQUEST: ErrorSchema
               },

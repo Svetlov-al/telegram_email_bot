@@ -24,7 +24,7 @@ router_email = Router(tags=['Почтовые ящики'])
 
 
 @router_email.post(
-    '/',
+    '',
     response={
         HTTPStatus.CREATED: dict,
         HTTPStatus.BAD_REQUEST: ErrorSchema
