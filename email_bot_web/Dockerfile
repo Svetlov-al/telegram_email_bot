@@ -15,4 +15,4 @@ COPY ./email_bot_web .
 
 RUN chmod +x entrypoint.sh
 
-ENTRYPOINT ["./entrypoint.sh"]
+#ENTRYPOINT ["./entrypoint.sh"]

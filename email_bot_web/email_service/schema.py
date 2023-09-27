@@ -103,3 +103,13 @@ class ErrorSchema(Schema):
     """Схема обработки ошибок"""
 
     detail: str
+
+
+class ImapEmailModel(Schema):
+    """Схема создания объекта письма"""
+
+    subject: str
+    from_: str
+    to: str
+    date: str
+    body: str

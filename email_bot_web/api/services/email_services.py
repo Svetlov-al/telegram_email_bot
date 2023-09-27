@@ -3,9 +3,11 @@ from api.services.exceptions import (
     EmailBoxByUsernameNotFoundError,
     EmailBoxCreationError,
     EmailBoxesNotFoundError,
+    EmailBoxWithFiltersAlreadyExist,
     EmailBoxWithFiltersCreationError,
     EmailServicesNotFoundError,
 )
+from api.services.tasks import IMAP_SERVERS, IMAPListener, process_email
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from email_service.models import EmailBox
 from email_service.schema import (
@@ -30,8 +32,20 @@ class EmailBoxService:
     @staticmethod
     async def create_email_box_with_filters(data: EmailBoxCreateSchema) -> EmailBox:
         try:
+            email_box = await email_repo.get_by_email_username_for_user(data.user_id, data.email_username)
+            if email_box:
+                raise EmailBoxWithFiltersAlreadyExist(
+                    f'Email box with username {data.email_username} already exists for user {data.user_id}')
+
             email_box = await email_repo.create(data.user_id, data.email_service_slug,
                                                 data.email_username, data.email_password)
+
+            host = IMAP_SERVERS[data.email_service_slug]
+
+            listener = IMAPListener(host=host, user=data.email_username,
+                                    password=data.email_password, callback=process_email)
+            await listener.start()
+
             for filter_data in data.filters:
                 await box_filter_repo.create(email_box, filter_data.filter_value, filter_data.filter_name)
             return email_box

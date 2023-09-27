@@ -23,6 +23,11 @@ class EmailBoxWithFiltersCreationError(CustomError):
     pass
 
 
+class EmailBoxWithFiltersAlreadyExist(CustomError):
+    """Исключение, возникающее при попытке создать уже существующй почтовый ящик"""
+    pass
+
+
 class EmailBoxNotFoundError(CustomError):
     """Исключение, возникающее при попытке получить список почтовых ящиков пользователя"""
     pass
