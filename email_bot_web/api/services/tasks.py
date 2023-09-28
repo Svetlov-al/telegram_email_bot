@@ -115,14 +115,11 @@ class EmailDecoder:
 
     @staticmethod
     def clean_excessive_newlines(text: str) -> str:
-        # Если идет более 3 пробелов, заменяем их на перенос строки
-        cleaned_text = re.sub(r' {3,}', '\n', text)
-        # Заменяем два или более подряд идущих переноса строки на два переноса строки
-        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
-        return cleaned_text.strip()
+        return ' '.join(text.split())
 
     def get_cleaned_email_details(self, email_obj) -> dict:
         body = self.get_email_body(email_obj)
+        body = self.clean_excessive_newlines(body)
         subject = self.get_email_subject(email_obj)
         sender = self.get_email_sender(email_obj)
         recipient = self.get_email_recipient(email_obj)
@@ -164,34 +161,42 @@ class IMAPClient(EmailDecoder):
         self._stop_flag = True
 
     async def fetch_messages_headers(self, imap_client: aioimaplib.IMAP4_SSL, max_uid: int) -> int:
-        response = await imap_client.uid('fetch', '%d:*' % (max_uid + 1),
-                                         '(UID FLAGS BODY.PEEK[HEADER.FIELDS (%s)])' % ' '.join(ID_HEADER_SET))
-        new_max_uid = max_uid
-        last_message_headers = None
-        if response.result == 'OK':
-            for i in range(0, len(response.lines) - 1, 3):
-                fetch_command_without_literal = b'%s %s' % (response.lines[i], response.lines[i + 2])
+        try:
+            response = await imap_client.uid('fetch', '%d:*' % (max_uid + 1),
+                                             '(UID FLAGS BODY.PEEK[HEADER.FIELDS (%s)])' % ' '.join(ID_HEADER_SET))
+            new_max_uid = max_uid
+            last_message_headers = None
+            if response.result == 'OK':
+                for i in range(0, len(response.lines) - 1, 3):
+                    fetch_command_without_literal = b'%s %s' % (response.lines[i], response.lines[i + 2])
 
-                match_result = FETCH_MESSAGE_DATA_UID.match(fetch_command_without_literal)
-                uid = 0
-                if match_result:
-                    uid = int(match_result.group('uid'))
+                    match_result = FETCH_MESSAGE_DATA_UID.match(fetch_command_without_literal)
+                    uid = 0
+                    if match_result:
+                        uid = int(match_result.group('uid'))
 
-                if uid > max_uid:
-                    last_message_headers = BytesHeaderParser().parsebytes(response.lines[i + 1])
-                    new_max_uid = uid
-            if last_message_headers:
-                if not self.whitelist or \
-                        (self.whitelist and self.extract_email(last_message_headers.get('From')) in self.whitelist):
-                    email_details = await self.fetch_message_details(imap_client, new_max_uid)
-                    formatted_email_dict = self.format_email(email_details)
-                    email_object = ImapEmailModel(**formatted_email_dict)
+                    if uid > max_uid:
+                        last_message_headers = BytesHeaderParser().parsebytes(response.lines[i + 1])
+                        new_max_uid = uid
+                if last_message_headers:
+                    if not self.whitelist or \
+                            (self.whitelist and self.extract_email(last_message_headers.get('From')) in self.whitelist):
+                        email_details = await self.fetch_message_details(imap_client, new_max_uid)
+                        formatted_email_dict = self.format_email(email_details)
+                        email_object = ImapEmailModel(**formatted_email_dict)
 
-                    if self.callback:
-                        await self.callback(email_object)
-        else:
-            print('error %s' % response)
-        return new_max_uid
+                        if self.callback:
+                            await self.callback(email_object)
+
+                        await self.mark_as_read(imap_client, new_max_uid)
+            else:
+                print('error %s' % response)
+            return new_max_uid
+
+        except aioimaplib.aioimaplib.CommandTimeout as e:
+            print(f'CommandTimeout error occurred: {e}')
+            await asyncio.sleep(10)  # Подождать 10 секунд перед попыткой снова
+            return await self.fetch_messages_headers(imap_client, max_uid)
 
     @staticmethod
     async def fetch_message_body(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> Message:
@@ -237,12 +242,16 @@ class IMAPClient(EmailDecoder):
         while not self._stop_flag:
             self.persistent_max_uid = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
             # logging.info('%s starting idle' % self.user)
-            idle_task = await imap_client.idle_start(timeout=59)
-            self.handle_server_push(await imap_client.wait_server_push())
+            idle_task = await imap_client.idle_start(timeout=180)
+            # self.handle_server_push(await imap_client.wait_server_push())
             imap_client.idle_done()
             await wait_for(idle_task, timeout=300)
             # logging.info('%s ending idle' % self.user)
         await imap_client.logout()
+
+    @staticmethod
+    async def mark_as_read(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> None:
+        await imap_client.uid('store', str(uid), '+FLAGS', '(\\Seen)')
 
 
 class IMAPListener:

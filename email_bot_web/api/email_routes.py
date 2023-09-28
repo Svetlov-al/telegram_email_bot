@@ -4,6 +4,7 @@ from api.services.box_filter_services import BoxFilterService
 from api.services.email_services import EmailBoxService
 from api.services.exceptions import (
     EmailBoxByUsernameNotFoundError,
+    EmailBoxWithFiltersAlreadyExist,
     EmailBoxWithFiltersCreationError,
     EmailServicesNotFoundError,
 )
@@ -36,6 +37,8 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
         await emails.create_email_box_with_filters(data)
         return JsonResponse({'success': 'Email box created successfully'}, status=HTTPStatus.CREATED)
     except EmailBoxWithFiltersCreationError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+    except EmailBoxWithFiltersAlreadyExist as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
 
 
