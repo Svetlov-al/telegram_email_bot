@@ -1,6 +1,8 @@
-from api.services.tools import redis_client
+from api.services.tools import RedisTools
 from django.db import models
 from user.models import BotUser
+
+redis_client = RedisTools()
 
 
 class EmailService(models.Model):

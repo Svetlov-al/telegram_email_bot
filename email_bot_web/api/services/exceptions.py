@@ -56,3 +56,33 @@ class BoxFilterCreationError(CustomError):
 class BoxFiltersNotFoundError(CustomError):
     """Исключение, возникающее при попытке получить фильтр по почтовому ящику"""
     pass
+
+
+class EmailServiceSlugDoesNotExist(CustomError):
+    """Исключениеб возникающее при попытке получить несуществующий почтовый сервис"""
+    pass
+
+
+class EmailListeningError(CustomError):
+    """Исключение, возникающее при проблемах с прослушиванием электронной почты."""
+    pass
+
+
+class EmailServiceNotFoundError(EmailListeningError):
+    """Исключение, возникающее при попытке получить несуществующий почтовый сервис."""
+    pass
+
+
+class UserDataNotFoundError(EmailListeningError):
+    """Исключение, возникающее при отсутствии данных пользователя в Redis."""
+    pass
+
+
+class EmailAlreadyListeningError(EmailListeningError):
+    """Исключение, возникающее, когда попытка начать прослушивание для уже прослушиваемого адреса электронной почты."""
+    pass
+
+
+class EmailNotListeningError(EmailListeningError):
+    """Исключение, возникающее, когда попытка остановить прослушивание для адреса электронной почты, который не прослушивается."""
+    pass

@@ -48,6 +48,14 @@ class EmailBoxRepository:
         return email_boxes
 
     @staticmethod
+    async def get_all_boxes() -> list[EmailBox]:
+        """Получение всех почтовых ящиков"""
+
+        email_boxes = [box async for box in EmailBox.objects.select_related(
+            'email_service', 'user_id').prefetch_related('filters').all()]
+        return email_boxes
+
+    @staticmethod
     async def get_by_email_username_for_user(telegram_id: int, email_username: str) -> EmailBox:
         """Получение конкретного почтового ящика со всеми фильтрами"""
 
@@ -78,3 +86,11 @@ class BoxFilterRepository:
         """Получение списка фильтров определенного почтового ящика"""
 
         return [filter_obj async for filter_obj in BoxFilter.objects.select_related('box_id').filter(box_id=box_id)]
+
+
+class EmailServiceRepository:
+    """Получение почтового сервиса"""
+
+    @staticmethod
+    async def get_host_by_slug(email_service_slug: str) -> EmailService:
+        return await EmailService.objects.aget(slug=email_service_slug)
