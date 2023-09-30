@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import binascii
 import json
 import quopri
 import re
@@ -12,11 +13,8 @@ from typing import Collection
 
 import aioimaplib
 import chardet  # type: ignore
-from api.repositories.repositories import (
-    BoxFilterRepository,
-    EmailBoxRepository,
-    EmailServiceRepository,
-)
+from api.repositories.repositories import EmailBoxRepository, EmailServiceRepository
+from api.services.email_processor import process_email
 from api.services.tools import redis_client
 from bs4 import BeautifulSoup
 from email_service.schema import ImapEmailModel
@@ -30,8 +28,6 @@ MessageAttributes = namedtuple('MessageAttributes', 'uid flags sequence_number')
 
 email_service_repo = EmailServiceRepository
 email_repo = EmailBoxRepository
-box_filter_repo = BoxFilterRepository
-
 
 MAX_RETRIES = 5
 
@@ -45,34 +41,44 @@ class EmailDecoder:
 
     @staticmethod
     def decode_payload(payload, content_transfer_encoding, encoding):
-        if isinstance(payload, str):
+        # Если payload уже является строкой и кодировка base64
+        if isinstance(payload, str) and content_transfer_encoding == 'base64':
+            try:
+                decoded_bytes = base64.b64decode(payload)
+                return decoded_bytes.decode(encoding, errors='replace')
+            except binascii.Error:
+                return payload
+
+        if isinstance(payload, bytes):
+            # Обработка base64
+            if content_transfer_encoding == 'base64':
+                try:
+                    return base64.b64decode(payload).decode(encoding, errors='replace')
+                except Exception as e:
+                    print(f'Error with decode base64 - {e}')
+                    detected_encoding = chardet.detect(payload)['encoding']
+                    return payload.decode(detected_encoding, errors='replace')
+
+            # Обработка quoted-printable
+            elif content_transfer_encoding == 'quoted-printable':
+                return quopri.decodestring(payload).decode(encoding, errors='replace')
+
+            # Обработка 7bit и 8bit
+            elif content_transfer_encoding in ['7bit', '8bit']:
+                return payload.decode(encoding, errors='replace')
+
+            else:
+                detected_encoding = chardet.detect(payload)['encoding']
+                return payload.decode(detected_encoding, errors='replace')
+        else:
             return payload
 
-        if content_transfer_encoding == 'base64':
-            # Если payload является строкой, преобразуем ее в байты
-            if isinstance(payload, str):
-                payload = payload.encode(encoding)
-
-            # Добавляем padding, если он отсутствует
-            padding_needed = len(payload) % 4
-            if padding_needed:
-                payload += b'=' * (4 - padding_needed)
-            return base64.b64decode(payload).decode(encoding, errors='replace')
-
-        elif content_transfer_encoding == 'quoted-printable':
-            return quopri.decodestring(payload).decode(encoding, errors='replace')
-
-        elif content_transfer_encoding == '7bit' or content_transfer_encoding == '8bit':
-            return payload.decode(encoding, errors='replace')
-
-        else:
-            detected_encoding = chardet.detect(payload)['encoding']
-            return payload.decode(detected_encoding, errors='replace')
-
     def get_email_body(self, email_obj: Message) -> str:
+
         body_parts = []
 
         if email_obj.is_multipart():
+            print('Email is multipart.')
             html_body = None
             text_body = None
             for part in email_obj.walk():
@@ -96,6 +102,7 @@ class EmailDecoder:
 
             body_parts.append(str(html_body if html_body else text_body))
         else:
+            print('Email is not multipart.')
             content_transfer_encoding = email_obj.get('Content-Transfer-Encoding')
             payload = email_obj.get_payload()
             encoding = email_obj.get_content_charset() or chardet.detect(payload.encode('utf-8'))['encoding']
@@ -153,13 +160,12 @@ class EmailDecoder:
 
 
 class IMAPClient(EmailDecoder):
-    def __init__(self, host, user, password, telegram_id, whitelist=None, callback=None):
+    def __init__(self, host, user, password, telegram_id, callback=None):
         self.host = host
         self.user = user
         self.telegram_id = telegram_id
         self.password = password
         self.persistent_max_uid = 1
-        self.whitelist = set(whitelist) if whitelist else None
         self.should_stop = False
         self.callback = callback
 
@@ -179,8 +185,9 @@ class IMAPClient(EmailDecoder):
     def stop_listening(self):
         self.should_stop = True
 
-    async def fetch_messages_headers(self, imap_client: aioimaplib.IMAP4_SSL, max_uid: int) -> int:
-        response = await imap_client.uid('fetch', '%d:*' % (max_uid + 1),
+    async def fetch_messages_headers(self, imap_client: aioimaplib.IMAP4_SSL, max_uid: int) -> tuple[int, bool]:
+        is_seen = False
+        response = await imap_client.uid('fetch', '%d:*' % max_uid,
                                          '(UID FLAGS BODY.PEEK[HEADER.FIELDS (%s)])' % ' '.join(ID_HEADER_SET))
         new_max_uid = max_uid
         last_message_headers = None
@@ -193,21 +200,24 @@ class IMAPClient(EmailDecoder):
                 if match_result:
                     uid = int(match_result.group('uid'))
 
+                # Проверка на UID и наличие флага прочитанного письма
                 if uid > max_uid:
                     last_message_headers = BytesHeaderParser().parsebytes(response.lines[i + 1])
                     new_max_uid = uid
-            if last_message_headers:
-                if not self.whitelist or \
-                        (self.whitelist and self.extract_email(last_message_headers.get('From')) in self.whitelist):
-                    email_details = await self.fetch_message_details(imap_client, new_max_uid)
-                    formatted_email_dict = self.format_email(email_details)
-                    email_object = ImapEmailModel(**formatted_email_dict)
+                    # Проверка на флаг прочитанности
+                    if b'\\Seen' in response.lines[i + 2]:
+                        is_seen = True
 
-                    if self.callback:
-                        await process_email(email_object, telegram_id=self.telegram_id, email_username=self.user)
+            if last_message_headers:
+                email_details = await self.fetch_message_details(imap_client, new_max_uid)
+                formatted_email_dict = self.format_email(email_details)
+                email_object = ImapEmailModel(**formatted_email_dict)
+
+                if self.callback:
+                    await process_email(email_object, telegram_id=self.telegram_id, email_username=self.user)
         else:
             print('error %s' % response)
-        return new_max_uid
+        return new_max_uid, is_seen
 
     @staticmethod
     async def fetch_message_body(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> Message:
@@ -236,16 +246,12 @@ class IMAPClient(EmailDecoder):
             if msg.endswith(b'EXISTS'):
                 imap_client.idle_done()
                 print('new message: %r' % msg)
-                self.persistent_max_uid = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
-                await self.mark_as_read(imap_client, self.persistent_max_uid)
+                last_uid, is_seen = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
+                if last_uid > self.persistent_max_uid and not is_seen:
+                    self.persistent_max_uid = last_uid
+                    await self.mark_as_read(imap_client, self.persistent_max_uid)
                 return True
         return False
-        # elif msg.endswith(b'EXPUNGE'):
-        #     print('message removed: %r' % msg)
-        # elif b'FETCH' in msg and b'\\Seen' in msg:
-        #     print('message seen %r' % msg)
-        # else:
-        #     print('unprocessed push message : %r' % msg)
 
     async def imap_loop(self) -> None:
         print(f'{self.user} - Подключение к серверу...')
@@ -255,6 +261,13 @@ class IMAPClient(EmailDecoder):
         await imap_client.login(self.user, self.password)
         print(f'{self.user} - Выбор папки INBOX...')
         await imap_client.select('INBOX')
+
+        # Проверка последнего письма перед началом прослушивания
+        last_uid, is_seen = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
+        if last_uid > self.persistent_max_uid and not is_seen:
+            # Если UID последнего письма больше сохраненного UID и письмо не прочитано, обрабатываем его
+            self.persistent_max_uid = last_uid
+            await self.mark_as_read(imap_client, self.persistent_max_uid)
 
         while not self.should_stop:
             user_key = f'user:{self.user}'
@@ -271,6 +284,7 @@ class IMAPClient(EmailDecoder):
                     imap_client.idle_done()
 
                 await wait_for(idle_task, timeout=300)
+                print('%s ending idle' % self.user)
 
             except (TimeoutError, CancelledError):
                 print(f'Превышено время ожидания на почте {self.user}! Перезапускаем режим idle...')
@@ -289,13 +303,21 @@ class IMAPClient(EmailDecoder):
                         print(f'{self.user} - Выбор папки INBOX...')
                         await imap_client.select('INBOX')
                         await imap_client.idle_start(timeout=59)
-                        break  # если соединение установлено успешно, выходим из цикла
+                        break  # если соединение установлено успешно
                     except Exception as e:
                         print(f'Ошибка при попытке переподключения для {self.user}: {e}')
                         retries += 1
                         await asyncio.sleep(10)  # задержка перед следующей попыткой
                 if retries == MAX_RETRIES:
                     print(f'Не удалось переподключиться к {self.user} после {MAX_RETRIES} попыток.')
+
+                    user_data_str = await redis_client.get_key(user_key)
+                    user_data = json.loads(user_data_str) if user_data_str else {}
+
+                    user_data['listening'] = False
+                    await redis_client.set_key(user_key, json.dumps(user_data))
+                    print(f'Установлено значение listening в False для {self.user} в Redis.')
+                    self.should_stop = True
         await imap_client.logout()
 
     @staticmethod
@@ -309,6 +331,8 @@ class IMAPListener:
                                       callback=callback)
         self._task = None
         self.user = user
+        self.password = password
+        self.host = host
 
     async def start(self):
         if self._task is None:
@@ -321,6 +345,20 @@ class IMAPListener:
             self._task = None
             print(f'Task for {self.user} was stopped!')
 
+    async def test_connection(self) -> bool:
+        """
+        Проверяет соединение и авторизацию на IMAP сервере.
+        Возвращает True, если соединение и авторизация успешны.
+        Генерирует исключение в случае ошибки.
+        """
+        imap_client = aioimaplib.IMAP4_SSL(host=self.host, timeout=10)  # используем self.host
+        await imap_client.wait_hello_from_server()
+        login_response = await imap_client.login(self.user, self.password)
+        if login_response.result != 'OK':
+            return False
+        else:
+            return True
+
 
 async def start_listening_all_emails():
     all_emails = await email_repo.get_all_boxes()
@@ -330,37 +368,25 @@ async def start_listening_all_emails():
         if not email_service:
             print(f'Email service with slug {email_data.email_service.slug} does not exist')
             continue
-        host = email_service.address
+        # host = email_service.address
 
-        listener = IMAPListener(
-            host=host,
-            user=email_data.email_username,
-            password=email_data.email_password,
-            telegram_id=email_data.user_id,
-            callback=process_email
-        )
-        await listener.start()
+        # listener = IMAPListener(
+        #     host=host,
+        #     user=email_data.email_username,
+        #     password=email_data.email_password,
+        #     telegram_id=email_data.user_id,
+        #     callback=process_email
+        # )
+        # await listener.start()
 
         user_key = f'user:{email_data.email_username}'
         user_data = {
             'telegram_id': email_data.user_id.telegram_id,
             'email_username': email_data.email_username,
-            'listening': True
+            'listening': False
         }
 
         try:
             await redis_client.set_key(user_key, json.dumps(user_data))
         except Exception as e:
             print(e)
-
-
-async def process_email(email_object, telegram_id, email_username):
-    # Логика обработки письма из объекта письма, преобразования в фото и передача дальше
-    print(telegram_id)
-    print(email_username)
-    print(f'Date: {email_object.date}')
-    print(f'From: {email_object.from_}')
-    print(f'To: {email_object.to}')
-    print(f'Subject: {email_object.subject}')
-    print(f'Body: {email_object.body}')
-    pass

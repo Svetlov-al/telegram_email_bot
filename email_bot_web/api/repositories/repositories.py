@@ -64,6 +64,7 @@ class EmailBoxRepository:
             user_id__telegram_id=telegram_id,
             email_username=email_username
         ).afirst()
+
         return email_box
 
     @staticmethod

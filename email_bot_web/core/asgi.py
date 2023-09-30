@@ -9,7 +9,7 @@ asgi_app = ASGIStaticFilesHandler(get_asgi_application())
 
 
 async def on_startup():
-    from api.services.tasks import start_listening_all_emails
+    from api.services.imap_listener import start_listening_all_emails
     await start_listening_all_emails()
 
 

@@ -7,6 +7,7 @@ from api.services.exceptions import (
     EmailBoxByUsernameNotFoundError,
     EmailBoxWithFiltersAlreadyExist,
     EmailBoxWithFiltersCreationError,
+    EmailCredentialsError,
     EmailListeningError,
     EmailServiceSlugDoesNotExist,
     EmailServicesNotFoundError,
@@ -46,6 +47,8 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
     except EmailServiceSlugDoesNotExist as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
+    except EmailCredentialsError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
 
 
 @router_email.post(
@@ -82,6 +85,8 @@ async def stop_listening(request: HttpRequest, data: EmailBoxRequestSchema):
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
     except EmailListeningError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+    except EmailBoxByUsernameNotFoundError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
 
 
 @router_email.post(
@@ -96,7 +101,7 @@ async def get_emailbox_by_username_for_user(request: HttpRequest, data: EmailBox
     try:
         email_box_data = await emails.get_email_box_by_username_for_user(data.telegram_id,
                                                                          data.email_username)
-        return EmailBoxOutputSchema.from_orm(email_box_data)
+        return email_box_data
     except EmailBoxByUsernameNotFoundError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
 

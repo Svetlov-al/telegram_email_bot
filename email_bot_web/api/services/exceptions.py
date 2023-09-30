@@ -29,7 +29,7 @@ class EmailBoxWithFiltersAlreadyExist(CustomError):
 
 
 class EmailBoxNotFoundError(CustomError):
-    """Исключение, возникающее при попытке получить список почтовых ящиков пользователя"""
+    """Исключение, возникающее при попытке получить почтовый ящик пользователя"""
     pass
 
 
@@ -68,21 +68,26 @@ class EmailListeningError(CustomError):
     pass
 
 
-class EmailServiceNotFoundError(EmailListeningError):
+class EmailServiceNotFoundError(CustomError):
     """Исключение, возникающее при попытке получить несуществующий почтовый сервис."""
     pass
 
 
-class UserDataNotFoundError(EmailListeningError):
+class UserDataNotFoundError(CustomError):
     """Исключение, возникающее при отсутствии данных пользователя в Redis."""
     pass
 
 
-class EmailAlreadyListeningError(EmailListeningError):
+class EmailAlreadyListeningError(CustomError):
     """Исключение, возникающее, когда попытка начать прослушивание для уже прослушиваемого адреса электронной почты."""
     pass
 
 
-class EmailNotListeningError(EmailListeningError):
+class EmailNotListeningError(CustomError):
     """Исключение, возникающее, когда попытка остановить прослушивание для адреса электронной почты, который не прослушивается."""
+    pass
+
+
+class EmailCredentialsError(CustomError):
+    """Исключение, возникающее если предоставлены не корректные данные логина и пароля от почты"""
     pass

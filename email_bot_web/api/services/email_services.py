@@ -5,6 +5,7 @@ from api.repositories.repositories import (
     EmailBoxRepository,
     EmailServiceRepository,
 )
+from api.services.email_processor import process_email
 from api.services.exceptions import (
     EmailAlreadyListeningError,
     EmailBoxByUsernameNotFoundError,
@@ -12,15 +13,15 @@ from api.services.exceptions import (
     EmailBoxesNotFoundError,
     EmailBoxWithFiltersAlreadyExist,
     EmailBoxWithFiltersCreationError,
+    EmailCredentialsError,
     EmailListeningError,
     EmailServiceSlugDoesNotExist,
     EmailServicesNotFoundError,
     UserDataNotFoundError,
 )
-from api.services.tasks import IMAPListener, process_email
+from api.services.imap_listener import IMAPListener
 from api.services.tools import RedisTools
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.core.serializers import serialize
 from email_service.models import EmailBox
 from email_service.schema import (
     EmailBoxCreateSchema,
@@ -64,6 +65,7 @@ class EmailBoxService:
                 raise EmailServiceSlugDoesNotExist(f'Email service with slug {data.email_service_slug} does not exist')
 
             host = email_service.address
+
             listener = IMAPListener(
                 host=host,
                 user=data.email_username,
@@ -71,6 +73,12 @@ class EmailBoxService:
                 telegram_id=data.user_id,
                 callback=process_email
             )
+
+            # Проверяем валидность предоставленных данных
+            credentials = await listener.test_connection()
+            if not credentials:
+                raise EmailCredentialsError('Error with authorisation, check email or password!')
+
             await listener.start()
 
             user_key = f'user:{data.email_username}'
@@ -112,26 +120,34 @@ class EmailBoxService:
             raise EmailBoxesNotFoundError(f'No email boxes found for user with telegram_id: {telegram_id}')
 
     @staticmethod
-    async def get_email_box_by_username_for_user(telegram_id: int, email_username: str) -> EmailBox:
+    async def get_email_box_by_username_for_user(telegram_id: int, email_username: str) -> EmailBoxOutputSchema:
         """Сервисный слой получения почтового ящика через telegram_id и email_username"""
 
-        cached_data_str = await redis_client.get_key(f'email_box_{telegram_id}_{email_username}')
-        if cached_data_str:
-            cached_data = json.loads(cached_data_str)
-            return EmailBox(**cached_data)
+        try:
+            cached_data_str = await redis_client.get_key(f'email_box_{telegram_id}_{email_username}')
+            if cached_data_str:
+                deserialized_data = json.loads(cached_data_str)
+                return EmailBoxOutputSchema(**deserialized_data)
+        except Exception as e:
+            print(f'Error: {e}')
 
         email_box = await email_repo.get_by_email_username_for_user(telegram_id, email_username)
         if not email_box:
             raise EmailBoxByUsernameNotFoundError(
                 f'No email box found with email_username: {email_username} for user with telegram_id: {telegram_id}')
 
-        email_box_serialized = serialize('json', [email_box])
+        email_box_schema = EmailBoxOutputSchema.from_orm(email_box)
+        email_box_serialized = json.dumps(email_box_schema.dict())
         await redis_client.set_key(f'email_box_{telegram_id}_{email_username}', email_box_serialized)
 
-        return email_box
+        return email_box_schema
 
     @staticmethod
     async def stop_listening_for_email(telegram_id: int, email_username: str) -> dict:
+        email_box = await email_repo.get_by_email_username_for_user(telegram_id, email_username)
+        if not email_box:
+            raise EmailBoxByUsernameNotFoundError(
+                f'No email box found with email_username: {email_username} for user with telegram_id: {telegram_id}')
         user_key = f'user:{email_username}'
         user_data_str = await redis_client.get_key(user_key)
         if not user_data_str:
