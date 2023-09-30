@@ -152,7 +152,9 @@ class EmailBoxService:
         user_data_str = await redis_client.get_key(user_key)
         if not user_data_str:
             raise UserDataNotFoundError(f'No data found for user {email_username}')
-
+        email_box_id = email_box.id
+        await email_repo.set_listening_status(email_box_id, False)
+        await redis_client.delete_key(f'email_boxes_for_user_{telegram_id}')
         user_data = json.loads(user_data_str)
         if user_data['listening']:
             user_data['listening'] = False
@@ -187,6 +189,9 @@ class EmailBoxService:
         )
         await listener.start()
 
+        email_box_id = email_box.id
+        await email_repo.set_listening_status(email_box_id, True)
+        await redis_client.delete_key(f'email_boxes_for_user_{telegram_id}')
         user_key = f'user:{email_box.email_username}'
         user_data = {
             'telegram_id': email_box.user_id.telegram_id,

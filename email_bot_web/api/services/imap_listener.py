@@ -313,9 +313,15 @@ class IMAPClient(EmailDecoder):
 
                     user_data_str = await redis_client.get_key(user_key)
                     user_data = json.loads(user_data_str) if user_data_str else {}
-
+                    email_box = await email_repo.get_by_email_username_for_user(self.telegram_id, self.user)
+                    email_box_id = email_box.id
+                    if email_box:
+                        await email_repo.set_listening_status(email_box_id, False)
+                    else:
+                        print(f'Почтовый ящик для {self.user} не найден!')
                     user_data['listening'] = False
                     await redis_client.set_key(user_key, json.dumps(user_data))
+                    await redis_client.delete_key(f'email_boxes_for_user_{self.user}')
                     print(f'Установлено значение listening в False для {self.user} в Redis.')
                     self.should_stop = True
         await imap_client.logout()

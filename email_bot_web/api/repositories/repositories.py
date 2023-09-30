@@ -73,6 +73,12 @@ class EmailBoxRepository:
 
         return [domen async for domen in EmailService.objects.all()]
 
+    @staticmethod
+    async def set_listening_status(email_box_id: int, status: bool) -> None:
+        """Устанавливает статус прослушивания для EmailBox"""
+
+        await EmailBox.objects.filter(id=email_box_id).aupdate(listening=status)
+
 
 class BoxFilterRepository:
 

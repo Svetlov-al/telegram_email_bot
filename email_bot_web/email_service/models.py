@@ -37,6 +37,7 @@ class EmailBox(models.Model):
                                       verbose_name='Почтовый сервис')
     email_username = models.CharField(max_length=64, verbose_name='Имя пользователя')
     email_password = models.CharField(max_length=256, verbose_name='Пароль')
+    listening = models.BooleanField(default=True, verbose_name='Слушает')
 
     class Meta:
         verbose_name = 'Почтовый ящик'
