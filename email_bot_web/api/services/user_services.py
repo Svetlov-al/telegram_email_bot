@@ -9,6 +9,8 @@ class BotUserService:
 
     @staticmethod
     async def create_bot_user(telegram_id: int) -> BotUser:
+        """Создает пользователя"""
+
         try:
             await user_repo.get_by_telegram_id(telegram_id)
             raise UserAlreadyExistsError(f'User with telegram_id {telegram_id} already exists.')
@@ -18,6 +20,8 @@ class BotUserService:
 
     @staticmethod
     async def get_bot_user(telegram_id: int) -> BotUser | None:
+        """Получает объект пользователя"""
+
         try:
             user = await user_repo.get_by_telegram_id(telegram_id)
             return user

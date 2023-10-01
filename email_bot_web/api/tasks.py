@@ -2,10 +2,9 @@ import asyncio
 import json
 
 from api.repositories.repositories import EmailBoxRepository
-from api.services.tools import RedisTools
+from api.services.tools import redis_client
 from celery import shared_task
 
-redis_client = RedisTools()
 email_repo = EmailBoxRepository
 
 global_loop = None
