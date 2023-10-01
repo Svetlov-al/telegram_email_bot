@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from pathlib import Path
 
@@ -98,6 +99,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REDIS_HOST = os.getenv('REDIS_HOST')
 REDIS_PORT = os.getenv('REDIS_PORT')
+SCHEDULE_TASK_PERIOD = int(os.getenv('SCHEDULE_TASK_PERIOD', 600))
+
 
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+
+CELERY_BEAT_SCHEDULE = {
+    'email-listening-status': {
+        'task': 'api.tasks.sync_email_listening_status',
+        'schedule': timedelta(seconds=SCHEDULE_TASK_PERIOD),
+    },
+}
