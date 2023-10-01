@@ -39,7 +39,10 @@ class RedisTools:
         await self.redis.flushall()
 
 
-def cache_async(key_prefix: str, expiration: int = 3600):
+def cache_async(key_prefix: str, expiration: int = 3600, schema=None):
+    """Асинхронный декоратор
+    Принимает ключ, время инвалидации, pydantic схему"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -54,8 +57,10 @@ def cache_async(key_prefix: str, expiration: int = 3600):
             cached_data_str = await redis_client.get_key(key)
             if cached_data_str:
                 cached_data = json.loads(cached_data_str)
-                if isinstance(cached_data, list):
-                    return [item if not isinstance(item, dict) else item for item in cached_data]
+                if schema:
+                    if isinstance(cached_data, list):
+                        return [schema(**item) for item in cached_data]
+                    return schema(**cached_data)
                 return cached_data
 
             result = await func(*args, **kwargs)

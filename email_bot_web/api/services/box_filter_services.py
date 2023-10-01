@@ -33,7 +33,7 @@ class BoxFilterService:
             raise EmailBoxByUsernameNotFoundError(f'No email boxes found for user with telegram_id: {telegram_id}')
 
     @staticmethod
-    @cache_async(key_prefix='filters_for_{telegram_id}_{email_username}')
+    @cache_async(key_prefix='filters_for_{telegram_id}_{email_username}', schema=BoxFilterSchema)
     async def get_filters_for_user_and_email(telegram_id: int, email_username: str) -> list[BoxFilterSchema]:
         """Возвращает список фильтров у пользователя по конкретному почтовому ящику"""
 

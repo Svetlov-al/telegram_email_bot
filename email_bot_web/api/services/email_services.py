@@ -102,7 +102,7 @@ class EmailBoxService:
             raise EmailBoxWithFiltersCreationError(f'Error creating email box with filters: {e}')
 
     @staticmethod
-    @cache_async(key_prefix='email_boxes_for_user_{telegram_id}')
+    @cache_async(key_prefix='email_boxes_for_user_{telegram_id}', schema=EmailBoxOutputSchema)
     async def get_email_boxes_for_user(telegram_id: int) -> list[EmailBoxOutputSchema]:
         """Сервисный слой получения списка почтовых ящиков пользователя через telegram_id"""
 
@@ -114,7 +114,7 @@ class EmailBoxService:
             raise EmailBoxesNotFoundError(f'No email boxes found for user with telegram_id: {telegram_id}')
 
     @staticmethod
-    @cache_async(key_prefix='email_box_{telegram_id}_{email_username}')
+    @cache_async(key_prefix='email_box_{telegram_id}_{email_username}', schema=EmailBoxOutputSchema)
     async def get_email_box_by_username_for_user(telegram_id: int, email_username: str) -> EmailBoxOutputSchema:
         """Сервисный слой получения почтового ящика через telegram_id и email_username"""
 
@@ -191,7 +191,7 @@ class EmailBoxService:
         return {'detail': f'Listening {email_box.email_username} was started!'}
 
     @staticmethod
-    @cache_async(key_prefix='all_email_services')
+    @cache_async(key_prefix='all_email_services', schema=EmailServiceSchema)
     async def get_all_services() -> list[EmailServiceSchema]:
         """Сервисный слой получения списка всех доступных почтовых сервисов"""
         try:

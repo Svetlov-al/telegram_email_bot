@@ -43,8 +43,11 @@ async def process_email(email_object, telegram_id, email_username):
         email_sender = email_sender_matches[0]
         print(f'OUR_SERNDER_TO_MATCH_WITH_FILTER - {email_sender}')
         for filter_ in list_of_filters:
-            print(filter_.filter_value)
-            if filter_.filter_value == email_sender:
+            if isinstance(filter_, dict):
+                value = filter_['filter_value']
+            else:
+                value = filter_.filter_value
+            if value == email_sender:
                 email_to_image = EmailToImage()
                 print(f'Date: {email_object.date}')
                 print(f'From: {email_object.from_}')

@@ -374,22 +374,26 @@ async def start_listening_all_emails():
         if not email_service:
             print(f'Email service with slug {email_data.email_service.slug} does not exist')
             continue
-        # host = email_service.address
 
-        # listener = IMAPListener(
-        #     host=host,
-        #     user=email_data.email_username,
-        #     password=email_data.email_password,
-        #     telegram_id=email_data.user_id,
-        #     callback=process_email
-        # )
-        # await listener.start()
+        if email_data.listening:
+            host = email_service.address
+
+            listener = IMAPListener(
+                host=host,
+                user=email_data.email_username,
+                password=email_data.email_password,
+                telegram_id=email_data.user_id,
+                callback=process_email
+            )
+            await listener.start()
+        else:
+            print(f'Listening is set to False for email {email_data.email_username}. Skipping...')
 
         user_key = f'user:{email_data.email_username}'
         user_data = {
             'telegram_id': email_data.user_id.telegram_id,
             'email_username': email_data.email_username,
-            'listening': False
+            'listening': email_data.listening
         }
 
         try:
