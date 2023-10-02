@@ -1,17 +1,19 @@
 import asyncio
 import json
+from asyncio import AbstractEventLoop
 
 from api.repositories.repositories import EmailBoxRepository
 from api.services.tools import redis_client
 from celery import shared_task
+from email_service.models import EmailBox
 
 email_repo = EmailBoxRepository
 
-global_loop = None
+global_loop: AbstractEventLoop
 
 
 @shared_task
-def sync_email_listening_status():
+def sync_email_listening_status() -> None:
     global global_loop
     if global_loop is None or global_loop.is_closed():
         global_loop = asyncio.new_event_loop()
@@ -19,14 +21,14 @@ def sync_email_listening_status():
     global_loop.run_until_complete(email_listening_status())
 
 
-async def email_listening_status():
+async def email_listening_status() -> None:
     """Функция синхронизации статуса слушателя почты между базой и редисом"""
 
-    all_email_boxes = await email_repo.get_all_boxes()
+    all_email_boxes: list[EmailBox] = await email_repo.get_all_boxes()
 
     for email_box in all_email_boxes:
 
-        db_status = email_box.listening
+        db_status: bool = email_box.listening
 
         user_key = f'user:{email_box.email_username}'
         user_data_str = await redis_client.get_key(user_key)

@@ -1,4 +1,3 @@
-from api.services.tools import redis_client
 from django.db import models
 from user.models import BotUser
 
@@ -17,14 +16,6 @@ class EmailService(models.Model):
 
     def __str__(self) -> str:
         return self.title
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        redis_client.delete_key('all_email_services')
-
-    def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-        redis_client.delete_key('all_email_services')
 
 
 class EmailBox(models.Model):

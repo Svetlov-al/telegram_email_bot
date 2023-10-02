@@ -20,8 +20,9 @@ from api.services.exceptions import (
     UserDataNotFoundError,
 )
 from api.services.imap_listener import IMAPListener
-from api.services.tools import cache_async, redis_client
+from api.services.tools import CACHE_PREFIX, cache_async, redis_client
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from email_service.logger_config import logger
 from email_service.models import EmailBox
 from email_service.schema import (
     EmailBoxCreateSchema,
@@ -31,28 +32,29 @@ from email_service.schema import (
 
 email_repo = EmailBoxRepository
 box_filter_repo = BoxFilterRepository
-email_service_repo = EmailServiceRepository
+email_domain_repo = EmailServiceRepository
 
 
 class EmailBoxService:
 
     @staticmethod
-    async def create_email_box(data: EmailBoxCreateSchema):
+    async def create_email_box(data: EmailBoxCreateSchema) -> EmailBox:
         """Создает почтовый ящик для пользователя без фильтров и запуска прослушки почты"""
 
         try:
-            result = await email_repo.create(data.user_id, data.email_service_slug, data.email_username,
-                                             data.email_password)
+            email_box = await email_repo.create(data.user_id, data.email_service_slug, data.email_username,
+                                                data.email_password)
 
-            await redis_client.delete_key(f'email_boxes_for_user_{data.user_id}')
+            await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{data.user_id}')
 
-            return result
+            return email_box
         except (ObjectDoesNotExist, ValidationError) as e:
             raise EmailBoxCreationError(f'Error creating email box: {str(e)}')
 
     @staticmethod
     async def create_email_box_with_filters(data: EmailBoxCreateSchema) -> EmailBox:
         """Создает почтовый ящик с фильтрами для пользователя, запускает прослушку почты"""
+
         try:
             email_box = await email_repo.get_by_email_username_for_user(data.user_id, data.email_username)
             if email_box:
@@ -62,11 +64,11 @@ class EmailBoxService:
             email_box = await email_repo.create(data.user_id, data.email_service_slug,
                                                 data.email_username, data.email_password)
 
-            email_service = await email_service_repo.get_host_by_slug(data.email_service_slug)
-            if not email_service:
+            email_domain = await email_domain_repo.get_host_by_slug(data.email_service_slug)
+            if not email_domain:
                 raise EmailServiceSlugDoesNotExist(f'Email service with slug {data.email_service_slug} does not exist')
 
-            host = email_service.address
+            host = email_domain.address
 
             listener = IMAPListener(
                 host=host,
@@ -95,7 +97,7 @@ class EmailBoxService:
             for filter_data in data.filters:
                 await box_filter_repo.create(email_box, filter_data.filter_value, filter_data.filter_name)
 
-            await redis_client.delete_key(f'email_boxes_for_user_{data.user_id}')
+            await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{data.user_id}')
 
             return email_box
         except (ObjectDoesNotExist, ValidationError) as e:
@@ -108,8 +110,7 @@ class EmailBoxService:
 
         try:
             email_boxes = await email_repo.get_all_boxes_for_user(telegram_id)
-            email_boxes_schemas = [EmailBoxOutputSchema.from_orm(box) for box in email_boxes]
-            return email_boxes_schemas
+            return [EmailBoxOutputSchema.from_orm(box) for box in email_boxes]
         except ObjectDoesNotExist:
             raise EmailBoxesNotFoundError(f'No email boxes found for user with telegram_id: {telegram_id}')
 
@@ -123,12 +124,10 @@ class EmailBoxService:
             raise EmailBoxByUsernameNotFoundError(
                 f'No email box found with email_username: {email_username} for user with telegram_id: {telegram_id}')
 
-        email_box_schema = EmailBoxOutputSchema.from_orm(email_box)
-
-        return email_box_schema
+        return EmailBoxOutputSchema.from_orm(email_box)
 
     @staticmethod
-    async def stop_listening_for_email(telegram_id: int, email_username: str) -> dict:
+    async def stop_listening_for_email(telegram_id: int, email_username: str) -> dict[str, str]:
         email_box = await email_repo.get_by_email_username_for_user(telegram_id, email_username)
         if not email_box:
             raise EmailBoxByUsernameNotFoundError(
@@ -137,22 +136,22 @@ class EmailBoxService:
         user_data_str = await redis_client.get_key(user_key)
         if not user_data_str:
             raise UserDataNotFoundError(f'No data found for user {email_username}')
-        email_box_id = email_box.id
-        await email_repo.set_listening_status(email_box_id, False)
-        await redis_client.delete_key(f'email_boxes_for_user_{telegram_id}')
+
+        await email_repo.set_listening_status(email_box.id, False)
+        await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
         user_data = json.loads(user_data_str)
         if user_data['listening']:
             user_data['listening'] = False
             await redis_client.set_key(user_key, json.dumps(user_data))
-            return {'detail': f'Listening for {email_username} was stopped!'}
+            return {'detail': f'Listening for {email_username} will be stopped in 2 minutes!'}
         raise EmailListeningError(f'Listening for {email_username} was not started!')
 
     @staticmethod
-    async def start_listening_for_email(telegram_id: int, email_username: str) -> dict:
+    async def start_listening_for_email(telegram_id: int, email_username: str) -> dict[str, str]:
         email_box = await email_repo.get_by_email_username_for_user(telegram_id, email_username)
 
-        email_service = await email_service_repo.get_host_by_slug(email_box.email_service.slug)
-        if not email_service:
+        email_domain = await email_domain_repo.get_host_by_slug(email_box.email_service.slug)
+        if not email_domain:
             raise EmailServiceSlugDoesNotExist(f'Email service with slug {email_box.email_service.slug} does not exist')
 
         user_key = f'user:{email_username}'
@@ -164,19 +163,18 @@ class EmailBoxService:
             if user_data['listening']:
                 raise EmailAlreadyListeningError(f'Listening for {email_username} was already started!')
 
-        host = email_service.address
         listener = IMAPListener(
-            host=host,
+            host=email_domain.address,
             user=email_box.email_username,
             password=email_box.email_password,
-            telegram_id=email_box.user_id,
+            telegram_id=email_box.user_id.telegram_id,
             callback=process_email
         )
+
         await listener.start()
 
-        email_box_id = email_box.id
-        await email_repo.set_listening_status(email_box_id, True)
-        await redis_client.delete_key(f'email_boxes_for_user_{telegram_id}')
+        await email_repo.set_listening_status(email_box.id, True)
+        await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
         user_key = f'user:{email_box.email_username}'
         user_data = {
             'telegram_id': email_box.user_id.telegram_id,
@@ -187,17 +185,16 @@ class EmailBoxService:
         try:
             await redis_client.set_key(user_key, json.dumps(user_data))
         except Exception as e:
-            print(e)
+            logger.error(f'Error while setting key in Redis: {e}')
         return {'detail': f'Listening {email_box.email_username} was started!'}
 
     @staticmethod
-    @cache_async(key_prefix='all_email_services', schema=EmailServiceSchema)
-    async def get_all_services() -> list[EmailServiceSchema]:
+    @cache_async(key_prefix='all_email_domains', schema=EmailServiceSchema)
+    async def get_all_domains() -> list[EmailServiceSchema]:
         """Сервисный слой получения списка всех доступных почтовых сервисов"""
         try:
-            services = await email_repo.get_services()
-            services_schemas = [EmailServiceSchema.from_orm(service) for service in services]
+            services = await email_repo.get_all_domains()
+            return [EmailServiceSchema.from_orm(service) for service in services]
 
-            return services_schemas
         except ObjectDoesNotExist:
             raise EmailServicesNotFoundError('No email services found')

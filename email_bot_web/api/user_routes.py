@@ -12,8 +12,8 @@ from email_service.schema import (
 )
 from ninja import Router
 
-bot_user_service = BotUserService()
-email_box_service = EmailBoxService()
+bot_users = BotUserService
+emails = EmailBoxService
 
 router_user = Router(tags=['Пользователи'])
 
@@ -27,7 +27,7 @@ router_user = Router(tags=['Пользователи'])
 )
 async def create_user(request: HttpRequest, data: BotUserCreateSchema):
     try:
-        user = await bot_user_service.create_bot_user(data.telegram_id)
+        user = await bot_users.create_bot_user(data.telegram_id)
         return JsonResponse(BotUserOutSchema.from_orm(user).dict(), status=HTTPStatus.CREATED)
     except UserAlreadyExistsError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
@@ -45,7 +45,7 @@ async def create_user(request: HttpRequest, data: BotUserCreateSchema):
 )
 async def get_user(request: HttpRequest, telegram_id: int):
     try:
-        user = await bot_user_service.get_bot_user(telegram_id)
+        user = await bot_users.get_bot_user(telegram_id)
         return JsonResponse(BotUserOutSchema.from_orm(user).dict(), status=HTTPStatus.OK)
     except UserNotFoundError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
@@ -61,7 +61,6 @@ async def get_user(request: HttpRequest, telegram_id: int):
 )
 async def get_user_with_boxes(request: HttpRequest, telegram_id: int):
     try:
-        email_boxes = await email_box_service.get_email_boxes_for_user(telegram_id)
-        return email_boxes
+        return await emails.get_email_boxes_for_user(telegram_id)
     except UserNotFoundError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)

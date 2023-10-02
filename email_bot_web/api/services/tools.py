@@ -4,6 +4,8 @@ from functools import wraps
 
 from redis.asyncio import Redis as redis
 
+CACHE_PREFIX = 'decorator_cache:'
+
 
 class RedisTools:
 
@@ -23,7 +25,7 @@ class RedisTools:
         else:
             await self.redis.set(key, value.encode('utf-8'))
 
-    async def get_list(self, key: str) -> list:
+    async def get_list(self, key: str) -> list[str]:
         values = await self.redis.lrange(key, 0, -1)
         return [v.decode('utf-8') for v in values]
 
@@ -38,10 +40,18 @@ class RedisTools:
     async def clear_all(self):
         await self.redis.flushall()
 
+    async def clear_decorator_cache(self):
+        cache_prefix = CACHE_PREFIX
+        keys = await self.redis.keys(cache_prefix + '*')
+        for key in keys:
+            await self.delete_key(key)
+
 
 def cache_async(key_prefix: str, expiration: int = 3600, schema=None):
     """Асинхронный декоратор
     Принимает ключ, время инвалидации, pydantic схему"""
+
+    cache_prefix = CACHE_PREFIX
 
     def decorator(func):
         @wraps(func)
@@ -52,7 +62,8 @@ def cache_async(key_prefix: str, expiration: int = 3600, schema=None):
                 all_args[func.__code__.co_varnames[i]] = arg
 
             # Формируем ключ, заменяя плейсхолдеры на реальные значения аргументов
-            key = key_prefix.format(**all_args)
+            # Добавляем префикс для инвалидации данных через роутер
+            key = cache_prefix + key_prefix.format(**all_args)
 
             cached_data_str = await redis_client.get_key(key)
             if cached_data_str:

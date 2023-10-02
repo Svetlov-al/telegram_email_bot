@@ -29,10 +29,10 @@ class EmailBoxRepository:
         """Создание почтового ящика"""
 
         user = await BotUser.objects.aget(pk=user_id)
-        email_service = await EmailService.objects.aget(slug=email_service_slug)
+        email_domain = await EmailService.objects.aget(slug=email_service_slug)
 
         return await EmailBox.objects.acreate(user_id=user,
-                                              email_service=email_service,
+                                              email_service=email_domain,
                                               email_username=email_username,
                                               email_password=email_password)
 
@@ -40,35 +40,30 @@ class EmailBoxRepository:
     async def get_all_boxes_for_user(telegram_id: int) -> list[EmailBox]:
         """Получение всех почтовых ящиков пользователя с присоединенными данными"""
 
-        email_boxes = [box async for box in
-                       EmailBox.objects.select_related('email_service', 'user_id').prefetch_related('filters').filter(
-                           user_id__telegram_id=telegram_id
-                       )]
-
-        return email_boxes
+        return [box async for box in
+                EmailBox.objects.select_related('email_service', 'user_id').prefetch_related('filters').filter(
+                    user_id__telegram_id=telegram_id
+                )]
 
     @staticmethod
     async def get_all_boxes() -> list[EmailBox]:
         """Получение всех почтовых ящиков"""
 
-        email_boxes = [box async for box in EmailBox.objects.select_related(
+        return [box async for box in EmailBox.objects.select_related(
             'email_service', 'user_id').prefetch_related('filters').all()]
-        return email_boxes
 
     @staticmethod
     async def get_by_email_username_for_user(telegram_id: int, email_username: str) -> EmailBox:
         """Получение конкретного почтового ящика со всеми фильтрами"""
 
-        email_box = await EmailBox.objects.select_related('email_service', 'user_id').prefetch_related(
+        return await EmailBox.objects.select_related('email_service', 'user_id').prefetch_related(
             'filters').filter(
             user_id__telegram_id=telegram_id,
             email_username=email_username
         ).afirst()
 
-        return email_box
-
     @staticmethod
-    async def get_services() -> list[EmailService]:
+    async def get_all_domains() -> list[EmailService]:
         """Получение списка всех доступных почтовых сервисов"""
 
         return [domen async for domen in EmailService.objects.all()]
@@ -99,5 +94,5 @@ class EmailServiceRepository:
     """Получение почтового сервиса"""
 
     @staticmethod
-    async def get_host_by_slug(email_service_slug: str) -> EmailService:
-        return await EmailService.objects.aget(slug=email_service_slug)
+    async def get_host_by_slug(email_service_slug: str) -> EmailService | None:
+        return await EmailService.objects.filter(slug=email_service_slug).afirst()

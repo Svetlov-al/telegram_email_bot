@@ -13,6 +13,7 @@ from api.services.exceptions import (
     EmailServicesNotFoundError,
     UserDataNotFoundError,
 )
+from api.services.tools import redis_client
 from django.http import HttpRequest, JsonResponse
 from email_service.schema import (
     EmailBoxCreateSchema,
@@ -32,7 +33,7 @@ router_email = Router(tags=['Почтовые ящики'])
 @router_email.post(
     '',
     response={
-        HTTPStatus.CREATED: dict,
+        HTTPStatus.CREATED: dict[str, str],
         HTTPStatus.BAD_REQUEST: ErrorSchema
     },
     summary='Создание почтового ящика',
@@ -54,7 +55,7 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
 @router_email.post(
     'start_listening',
     response={
-        HTTPStatus.OK: dict,
+        HTTPStatus.OK: dict[str, str],
         HTTPStatus.BAD_REQUEST: ErrorSchema
     },
     summary='Запуск отслеживания писем для почты',
@@ -73,7 +74,7 @@ async def start_listening(request: HttpRequest, data: EmailBoxRequestSchema):
 @router_email.post(
     'stop_listening',
     response={
-        HTTPStatus.OK: dict,
+        HTTPStatus.OK: dict[str, str],
         HTTPStatus.BAD_REQUEST: ErrorSchema
     },
     summary='Остановка отслеживания писем для почты',
@@ -116,7 +117,19 @@ async def get_emailbox_by_username_for_user(request: HttpRequest, data: EmailBox
 )
 async def get_services(request: HttpRequest):
     try:
-        services = await emails.get_all_services()
-        return services
+        return await emails.get_all_domains()
     except EmailServicesNotFoundError:
-        return JsonResponse({'detail': 'Services not found'}, status=HTTPStatus.NOT_FOUND)
+        return JsonResponse({'detail': 'Domains not found'}, status=HTTPStatus.NOT_FOUND)
+
+
+@router_email.post(
+    '/clear_decorator_cache',
+    response={
+        HTTPStatus.OK: dict[str, str],
+        HTTPStatus.BAD_REQUEST: ErrorSchema
+    },
+    summary='Очищение всего кеша связанного с маршрутами'
+)
+async def clear_cache(request: HttpRequest):
+    await redis_client.clear_decorator_cache()
+    return JsonResponse({'detail': 'Cache cleared'}, status=HTTPStatus.OK)

@@ -26,7 +26,7 @@ router_filter = Router(tags=['Фильтры'])
 @router_filter.post(
     '/create',
     response={
-        HTTPStatus.CREATED: dict,
+        HTTPStatus.CREATED: dict[str, str],
         HTTPStatus.BAD_REQUEST: ErrorSchema
     },
     summary='Создание фильтра для почтового ящика',

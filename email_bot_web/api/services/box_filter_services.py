@@ -4,7 +4,7 @@ from api.services.exceptions import (
     BoxFiltersNotFoundError,
     EmailBoxByUsernameNotFoundError,
 )
-from api.services.tools import cache_async, redis_client
+from api.services.tools import CACHE_PREFIX, cache_async, redis_client
 from django.core.exceptions import ObjectDoesNotExist
 from email_service.models import BoxFilter
 from email_service.schema import BoxFilterSchema
@@ -24,7 +24,7 @@ class BoxFilterService:
             email_box = await email_repo.get_by_email_username_for_user(telegram_id, email_username)
             filter_obj = await box_filter_repo.create(email_box, filter_value, filter_name)
 
-            await redis_client.delete_key(f'filters_for_{email_box.user_id}_{email_box.email_username}')
+            await redis_client.delete_key(f'{CACHE_PREFIX}filters_for_{email_box.user_id}_{email_box.email_username}')
 
             return filter_obj
         except ValidationError as e:
@@ -43,6 +43,4 @@ class BoxFilterService:
                 f'No email box found for user with telegram_id: {telegram_id} and email_username: {email_username}')
 
         filters_obj = await box_filter_repo.get_by_box_id(email_box.id)
-        filters_schemas = [BoxFilterSchema.from_orm(filter_obj) for filter_obj in filters_obj]
-
-        return filters_schemas
+        return [BoxFilterSchema.from_orm(filter_obj) for filter_obj in filters_obj]
