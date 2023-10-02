@@ -14,6 +14,8 @@ global_loop: AbstractEventLoop
 
 @shared_task
 def sync_email_listening_status() -> None:
+    """Создание Event Loop для Celery задачи на синхронизацию статусов"""
+
     global global_loop
     if global_loop is None or global_loop.is_closed():
         global_loop = asyncio.new_event_loop()

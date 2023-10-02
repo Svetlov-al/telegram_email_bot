@@ -1,8 +1,5 @@
 import asyncio
-import base64
-import binascii
 import json
-import quopri
 import re
 from asyncio import CancelledError, TimeoutError, wait_for
 from collections import namedtuple
@@ -12,7 +9,6 @@ from email.parser import BytesHeaderParser, BytesParser
 from typing import Callable, Collection
 
 import aioimaplib
-import chardet  # type: ignore
 from api.repositories.repositories import EmailBoxRepository, EmailServiceRepository
 from api.services.email_processor import process_email
 from api.services.tools import redis_client
@@ -42,80 +38,36 @@ class EmailDecoder:
             [text.decode(charset or 'utf-8') if isinstance(text, bytes) else text for text, charset in decoded_content])
 
     @staticmethod
-    def decode_payload(payload: str | bytes, content_transfer_encoding: str, encoding: str) -> str | bytes:
-        # Если payload уже является строкой и кодировка base64
-        if isinstance(payload, str) and content_transfer_encoding == 'base64':
-            try:
-                decoded_bytes = base64.b64decode(payload)
-                return decoded_bytes.decode(encoding, errors='replace')
-            except binascii.Error:
-                return payload
+    def get_email_body(email_obj: Message) -> str:
+        """Извлекает тело письма из объекта письма."""
 
-        if isinstance(payload, bytes):
-            # Обработка base64
-            if content_transfer_encoding == 'base64':
-                try:
-                    return base64.b64decode(payload).decode(encoding, errors='replace')
-                except Exception as e:
-                    logger.error(f'Error with decode base64 - {e}')
-                    detected_encoding = chardet.detect(payload)['encoding']
-                    return payload.decode(detected_encoding, errors='replace')
-
-            # Обработка quoted-printable
-            elif content_transfer_encoding == 'quoted-printable':
-                return quopri.decodestring(payload).decode(encoding, errors='replace')
-
-            # Обработка 7bit и 8bit
-            elif content_transfer_encoding in ['7bit', '8bit']:
-                return payload.decode(encoding, errors='replace')
-
-            else:
-                detected_encoding = chardet.detect(payload)['encoding']
-                return payload.decode(detected_encoding, errors='replace')
-        else:
-            return payload
-
-    def get_email_body(self, email_obj: Message) -> str:
         body_parts = []
 
         if email_obj.is_multipart():
-            logger.info('Email is multipart.')
-            html_body = None
-            text_body = None
             for part in email_obj.walk():
                 content_type = part.get_content_type()
-                content_disposition = str(part.get('Content-Disposition'))
-                content_transfer_encoding = part.get('Content-Transfer-Encoding')
-                payload = part.get_payload(decode=True)
-
-                if payload is None:
+                charset = part.get_content_charset() or 'utf-8'
+                try:
+                    # Извлекаем только текстовую часть письма
+                    if content_type == 'text/plain':
+                        payload = part.get_payload(decode=True)
+                        decoded_payload = payload.decode(charset, errors='replace')
+                        body_parts.append(decoded_payload)
+                except Exception as e:
+                    logger.error(e)
                     continue
-
-                encoding = part.get_content_charset() or chardet.detect(payload)['encoding']
-
-                if 'attachment' not in content_disposition:
-                    decoded_body = self.decode_payload(payload, content_transfer_encoding, encoding)
-                    if isinstance(decoded_body, bytes):
-                        decoded_body = decoded_body.decode('utf-8', errors='replace')
-
-                    if content_type == 'text/html':
-                        html_body = self.clean_email_body(decoded_body)
-                    else:
-                        text_body = decoded_body
-
-            body_parts.append(str(html_body if html_body else text_body))
         else:
-            logger.info('Email is not multipart.')
-            content_transfer_encoding = email_obj.get('Content-Transfer-Encoding')
-            payload = str(email_obj.get_payload())
-            encoding = email_obj.get_content_charset() or chardet.detect(payload.encode('utf-8'))['encoding']
-            decoded_payload = self.decode_payload(payload, content_transfer_encoding, encoding)
-            if isinstance(decoded_payload, bytes):
-                decoded_payload = decoded_payload.decode('utf-8', errors='replace')
-            body_parts.append(self.clean_email_body(decoded_payload))
+            charset = email_obj.get_content_charset() or 'utf-8'
+            try:
+                payload = email_obj.get_payload(decode=True)
+                decoded_payload = payload.decode(charset, errors='replace')
+                body_parts.append(decoded_payload)
+            except Exception as e:
+                logger.error(e)
+                pass
 
-        full_body = '\n\n'.join(body_parts)
-        return full_body[:500]
+        body = '\n\n'.join(body_parts)
+        return body
 
     def get_email_subject(self, email_obj: Message) -> str:
         return self.decode_header_content(email_obj['subject'])
@@ -154,7 +106,6 @@ class EmailDecoder:
         sender = self.get_email_sender(email_obj)
         recipient = self.get_email_recipient(email_obj)
         date = self.get_email_date(email_obj)
-
         return {
             'body': body,
             'subject': subject,
@@ -225,13 +176,12 @@ class IMAPClient(EmailDecoder):
         return new_max_uid, is_seen
 
     @staticmethod
-    async def fetch_message_body(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> Message:
+    async def fetch_message(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> Message:
         dwnld_resp = await imap_client.uid('fetch', str(uid), 'BODY.PEEK[]')
         return BytesParser().parsebytes(dwnld_resp.lines[1])
 
     async def fetch_message_details(self, imap_client: aioimaplib.IMAP4_SSL, uid: int) -> dict[str, str]:
-        dwnld_resp = await imap_client.uid('fetch', str(uid), 'BODY.PEEK[]')
-        message = BytesParser().parsebytes(dwnld_resp.lines[1])
+        message = await self.fetch_message(imap_client, uid)
         email_details = self.get_cleaned_email_details(message)
         return email_details
 
