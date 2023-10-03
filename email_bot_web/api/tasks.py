@@ -1,6 +1,5 @@
 import asyncio
 import json
-from asyncio import AbstractEventLoop
 
 from api.repositories.repositories import EmailBoxRepository
 from api.services.tools import redis_client
@@ -9,7 +8,7 @@ from email_service.models import EmailBox
 
 email_repo = EmailBoxRepository
 
-global_loop: AbstractEventLoop
+global_loop = None
 
 
 @shared_task
