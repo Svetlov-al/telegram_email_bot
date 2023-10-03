@@ -11,6 +11,7 @@ from typing import Callable, Collection
 import aioimaplib
 from api.repositories.repositories import EmailBoxRepository, EmailServiceRepository
 from api.services.email_processor import process_email
+from api.services.exceptions import EmailCredentialsError
 from api.services.tools import redis_client
 from bs4 import BeautifulSoup
 from email_service.logger_config import logger
@@ -320,6 +321,26 @@ class IMAPListener:
             return False
         else:
             return True
+
+    @classmethod
+    async def create_and_start(cls, host: str, user: str, password: str, telegram_id: int,
+                               callback: Callable | None = None) -> 'IMAPListener':
+        listener = cls(
+            host=host,
+            user=user,
+            password=password,
+            telegram_id=telegram_id,
+            callback=callback
+        )
+
+        # Проверяем валидность предоставленных данных
+        credentials = await listener.test_connection()
+        if not credentials:
+            raise EmailCredentialsError('Error with authorisation, check email or password!')
+
+        await listener.start()
+
+        return listener
 
 
 async def start_listening_all_emails() -> None:

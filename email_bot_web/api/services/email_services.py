@@ -13,7 +13,6 @@ from api.services.exceptions import (
     EmailBoxesNotFoundError,
     EmailBoxWithFiltersAlreadyExist,
     EmailBoxWithFiltersCreationError,
-    EmailCredentialsError,
     EmailListeningError,
     EmailServiceSlugDoesNotExist,
     EmailServicesNotFoundError,
@@ -68,22 +67,11 @@ class EmailBoxService:
             if not email_domain:
                 raise EmailServiceSlugDoesNotExist(f'Email service with slug {data.email_service_slug} does not exist')
 
-            host = email_domain.address
-
-            listener = IMAPListener(
-                host=host,
-                user=data.email_username,
-                password=data.email_password,
-                telegram_id=data.user_id,
-                callback=process_email
-            )
-
-            # Проверяем валидность предоставленных данных
-            credentials = await listener.test_connection()
-            if not credentials:
-                raise EmailCredentialsError('Error with authorisation, check email or password!')
-
-            await listener.start()
+            await IMAPListener.create_and_start(host=email_domain.address,
+                                                user=data.email_username,
+                                                password=data.email_password,
+                                                telegram_id=email_box.user_id.telegram_id,
+                                                callback=process_email)
 
             user_key = f'user:{data.email_username}'
 

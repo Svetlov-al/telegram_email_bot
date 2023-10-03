@@ -47,7 +47,7 @@ class EmailBoxRepository:
 
     @staticmethod
     async def get_all_boxes() -> list[EmailBox]:
-        """Получение всех почтовых ящиков"""
+        """Асинхронный метод получение всех почтовых ящиков"""
 
         return [box async for box in EmailBox.objects.select_related(
             'email_service', 'user_id').prefetch_related('filters').all()]

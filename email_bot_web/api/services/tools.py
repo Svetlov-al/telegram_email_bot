@@ -16,10 +16,14 @@ class RedisTools:
         self.redis = redis.from_url(self.redis_url)
 
     async def get_key(self, key: str) -> str:
+        """Асинхронное получение ключей"""
+
         value = await self.redis.get(key)
         return value.decode('utf-8') if value else None
 
     async def set_key(self, key: str, value: str, expire_time: int | None = None):
+        """Асинхронная установка ключей"""
+
         if expire_time:
             await self.redis.setex(key, expire_time, value.encode('utf-8'))
         else:
