@@ -19,7 +19,12 @@ from api.services.exceptions import (
     UserDataNotFoundError,
 )
 from api.services.imap_listener import IMAPListener
-from api.services.tools import CACHE_PREFIX, cache_async, redis_client
+from api.services.tools import (
+    CACHE_PREFIX,
+    cache_async,
+    redis_client,
+    sync_redis_client,
+)
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from email_service.logger_config import logger
 from email_service.models import EmailBox
@@ -80,7 +85,7 @@ class EmailBoxService:
                 'email_username': data.email_username,
                 'listening': True
             }
-            await redis_client.set_key(user_key, json.dumps(user_data))
+            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
 
             for filter_data in data.filters:
                 await box_filter_repo.create(email_box, filter_data.filter_value, filter_data.filter_name)
@@ -95,7 +100,6 @@ class EmailBoxService:
     @cache_async(key_prefix='email_boxes_for_user_{telegram_id}', schema=EmailBoxOutputSchema)
     async def get_email_boxes_for_user(telegram_id: int) -> list[EmailBoxOutputSchema]:
         """Сервисный слой получения списка почтовых ящиков пользователя через telegram_id"""
-
         try:
             email_boxes = await email_repo.get_all_boxes_for_user(telegram_id)
             return [EmailBoxOutputSchema.from_orm(box) for box in email_boxes]
@@ -120,17 +124,20 @@ class EmailBoxService:
         if not email_box:
             raise EmailBoxByUsernameNotFoundError(
                 f'No email box found with email_username: {email_username} for user with telegram_id: {telegram_id}')
+
         user_key = f'user:{email_username}'
-        user_data_str = await redis_client.get_key(user_key)
+        user_data_str = sync_redis_client.sync_get_key(user_key)
         if not user_data_str:
             raise UserDataNotFoundError(f'No data found for user {email_username}')
 
         await email_repo.set_listening_status(email_box.id, False)
+
         await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
+
         user_data = json.loads(user_data_str)
         if user_data['listening']:
             user_data['listening'] = False
-            await redis_client.set_key(user_key, json.dumps(user_data))
+            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
             return {'detail': f'Listening for {email_username} will be stopped in 2 minutes!'}
         raise EmailListeningError(f'Listening for {email_username} was not started!')
 
@@ -143,7 +150,7 @@ class EmailBoxService:
             raise EmailServiceSlugDoesNotExist(f'Email service with slug {email_box.email_service.slug} does not exist')
 
         user_key = f'user:{email_username}'
-        user_data_str = await redis_client.get_key(user_key)
+        user_data_str = sync_redis_client.sync_get_key(user_key)
         if not user_data_str:
             raise UserDataNotFoundError(f'No data found for user {email_username}')
         else:
@@ -171,13 +178,13 @@ class EmailBoxService:
         }
 
         try:
-            await redis_client.set_key(user_key, json.dumps(user_data))
+            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
         except Exception as e:
             logger.error(f'Error while setting key in Redis: {e}')
         return {'detail': f'Listening {email_box.email_username} was started!'}
 
     @staticmethod
-    @cache_async(key_prefix='all_email_domains', schema=EmailServiceSchema)
+    @cache_async(key_prefix='all_email_domains', schema=EmailServiceSchema, use_cache=False)
     async def get_all_domains() -> list[EmailServiceSchema]:
         """Сервисный слой получения списка всех доступных почтовых сервисов"""
         try:

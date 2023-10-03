@@ -53,6 +53,11 @@ class EmailBoxRepository:
             'email_service', 'user_id').prefetch_related('filters').all()]
 
     @staticmethod
+    def sync_get_all_boxes() -> list[EmailBox]:
+        """Синхронный метод получения списка почтовых ящиков"""
+        return list(EmailBox.objects.all())
+
+    @staticmethod
     async def get_by_email_username_for_user(telegram_id: int, email_username: str) -> EmailBox:
         """Получение конкретного почтового ящика со всеми фильтрами"""
 
