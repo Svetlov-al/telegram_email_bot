@@ -59,9 +59,7 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
 async def start_listening(request: HttpRequest, data: EmailBoxRequestSchema):
     try:
         return await emails.start_listening_for_email(data.telegram_id, data.email_username)
-    except UserDataNotFoundError as e:
-        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
-    except EmailServiceSlugDoesNotExist as e:
+    except (UserDataNotFoundError, EmailServiceSlugDoesNotExist) as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
     except EmailAlreadyListeningError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
@@ -78,12 +76,10 @@ async def start_listening(request: HttpRequest, data: EmailBoxRequestSchema):
 async def stop_listening(request: HttpRequest, data: EmailBoxRequestSchema):
     try:
         return await emails.stop_listening_for_email(data.telegram_id, data.email_username)
-    except UserDataNotFoundError as e:
+    except (UserDataNotFoundError, EmailBoxByUsernameNotFoundError) as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
     except EmailListeningError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
-    except EmailBoxByUsernameNotFoundError as e:
-        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
 
 
 @router_email.post(
