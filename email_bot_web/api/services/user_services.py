@@ -1,5 +1,5 @@
 from api.repositories.repositories import BotUserRepository
-from api.services.exceptions import UserAlreadyExistsError, UserNotFoundError
+from infrastucture.exceptions import UserAlreadyExistsError, UserNotFoundError
 from user.models import BotUser
 
 user_repo = BotUserRepository

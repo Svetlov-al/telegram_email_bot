@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
 from api.services.email_services import EmailBoxService
-from api.services.exceptions import UserAlreadyExistsError, UserNotFoundError
 from api.services.user_services import BotUserService
 from django.http import HttpRequest, JsonResponse
 from email_service.schema import (
@@ -10,6 +9,7 @@ from email_service.schema import (
     EmailBoxOutputSchema,
     ErrorSchema,
 )
+from infrastucture.exceptions import UserAlreadyExistsError, UserNotFoundError
 from ninja import Router
 
 bot_users = BotUserService

@@ -2,17 +2,17 @@ from http import HTTPStatus
 
 from api.services.box_filter_services import BoxFilterService
 from api.services.email_services import EmailBoxService
-from api.services.exceptions import (
-    BoxFilterCreationError,
-    BoxFiltersNotFoundError,
-    EmailBoxByUsernameNotFoundError,
-)
 from django.http import HttpRequest, JsonResponse
 from email_service.schema import (
     BoxFilterSchema,
     CreateBoxFilterRequest,
     EmailBoxRequestSchema,
     ErrorSchema,
+)
+from infrastucture.exceptions import (
+    BoxFilterCreationError,
+    BoxFiltersNotFoundError,
+    EmailBoxByUsernameNotFoundError,
 )
 from ninja import Router
 

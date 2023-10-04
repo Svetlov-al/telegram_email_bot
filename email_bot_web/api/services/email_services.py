@@ -5,8 +5,15 @@ from api.repositories.repositories import (
     EmailBoxRepository,
     EmailServiceRepository,
 )
-from api.services.email_processor import process_email
-from api.services.exceptions import (
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from email_service.models import EmailBox
+from email_service.schema import (
+    EmailBoxCreateSchema,
+    EmailBoxOutputSchema,
+    EmailServiceSchema,
+)
+from infrastucture.email_processor import process_email
+from infrastucture.exceptions import (
     EmailAlreadyListeningError,
     EmailBoxByUsernameNotFoundError,
     EmailBoxCreationError,
@@ -18,21 +25,9 @@ from api.services.exceptions import (
     EmailServicesNotFoundError,
     UserDataNotFoundError,
 )
-from api.services.imap_listener import IMAPListener
-from api.services.tools import (
-    CACHE_PREFIX,
-    cache_async,
-    redis_client,
-    sync_redis_client,
-)
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from email_service.logger_config import logger
-from email_service.models import EmailBox
-from email_service.schema import (
-    EmailBoxCreateSchema,
-    EmailBoxOutputSchema,
-    EmailServiceSchema,
-)
+from infrastucture.imap_listener import IMAPListener
+from infrastucture.logger_config import logger
+from infrastucture.tools import CACHE_PREFIX, cache_async, redis_client
 
 email_repo = EmailBoxRepository
 box_filter_repo = BoxFilterRepository
@@ -49,7 +44,7 @@ class EmailBoxService:
             email_box = await email_repo.create(data.user_id, data.email_service_slug, data.email_username,
                                                 data.email_password)
 
-            await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{data.user_id}')
+            redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{data.user_id}')
 
             return email_box
         except (ObjectDoesNotExist, ValidationError) as e:
@@ -85,12 +80,12 @@ class EmailBoxService:
                 'email_username': data.email_username,
                 'listening': True
             }
-            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
+            redis_client.set_key(user_key, json.dumps(user_data))
 
             for filter_data in data.filters:
                 await box_filter_repo.create(email_box, filter_data.filter_value, filter_data.filter_name)
 
-            await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{data.user_id}')
+            redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{data.user_id}')
 
             return email_box
         except (ObjectDoesNotExist, ValidationError) as e:
@@ -126,18 +121,18 @@ class EmailBoxService:
                 f'No email box found with email_username: {email_username} for user with telegram_id: {telegram_id}')
 
         user_key = f'user:{email_username}'
-        user_data_str = sync_redis_client.sync_get_key(user_key)
+        user_data_str = redis_client.get_key(user_key)
         if not user_data_str:
             raise UserDataNotFoundError(f'No data found for user {email_username}')
 
         await email_repo.set_listening_status(email_box.id, False)
 
-        await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
+        redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
 
         user_data = json.loads(user_data_str)
         if user_data['listening']:
             user_data['listening'] = False
-            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
+            redis_client.set_key(user_key, json.dumps(user_data))
             return {'detail': f'Listening for {email_username} will be stopped in 2 minutes!'}
         raise EmailListeningError(f'Listening for {email_username} was not started!')
 
@@ -150,7 +145,7 @@ class EmailBoxService:
             raise EmailServiceSlugDoesNotExist(f'Email service with slug {email_box.email_service.slug} does not exist')
 
         user_key = f'user:{email_username}'
-        user_data_str = sync_redis_client.sync_get_key(user_key)
+        user_data_str = redis_client.get_key(user_key)
         if not user_data_str:
             raise UserDataNotFoundError(f'No data found for user {email_username}')
         else:
@@ -169,7 +164,7 @@ class EmailBoxService:
         await listener.start()
 
         await email_repo.set_listening_status(email_box.id, True)
-        await redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
+        redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
         user_key = f'user:{email_box.email_username}'
         user_data = {
             'telegram_id': email_box.user_id.telegram_id,
@@ -178,7 +173,7 @@ class EmailBoxService:
         }
 
         try:
-            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
+            redis_client.set_key(user_key, json.dumps(user_data))
         except Exception as e:
             logger.error(f'Error while setting key in Redis: {e}')
         return {'detail': f'Listening {email_box.email_username} was started!'}

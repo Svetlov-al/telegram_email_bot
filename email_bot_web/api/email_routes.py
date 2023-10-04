@@ -2,7 +2,15 @@ from http import HTTPStatus
 
 from api.services.box_filter_services import BoxFilterService
 from api.services.email_services import EmailBoxService
-from api.services.exceptions import (
+from django.http import HttpRequest, JsonResponse
+from email_service.schema import (
+    EmailBoxCreateSchema,
+    EmailBoxOutputSchema,
+    EmailBoxRequestSchema,
+    EmailServiceSchema,
+    ErrorSchema,
+)
+from infrastucture.exceptions import (
     EmailAlreadyListeningError,
     EmailBoxByUsernameNotFoundError,
     EmailBoxWithFiltersAlreadyExist,
@@ -13,15 +21,7 @@ from api.services.exceptions import (
     EmailServicesNotFoundError,
     UserDataNotFoundError,
 )
-from api.services.tools import redis_client
-from django.http import HttpRequest, JsonResponse
-from email_service.schema import (
-    EmailBoxCreateSchema,
-    EmailBoxOutputSchema,
-    EmailBoxRequestSchema,
-    EmailServiceSchema,
-    ErrorSchema,
-)
+from infrastucture.tools import redis_client
 from ninja import Router
 
 emails = EmailBoxService
@@ -123,5 +123,5 @@ async def get_services(request: HttpRequest):
     summary='Очищение всего кеша связанного с маршрутами'
 )
 async def clear_cache(request: HttpRequest):
-    await redis_client.clear_decorator_cache()
+    redis_client.clear_decorator_cache()
     return JsonResponse({'detail': 'Cache cleared'}, status=HTTPStatus.OK)

@@ -10,13 +10,13 @@ from typing import Callable, Collection
 
 import aioimaplib
 from api.repositories.repositories import EmailBoxRepository, EmailServiceRepository
-from api.services.email_processor import process_email
-from api.services.exceptions import EmailCredentialsError
-from api.services.tools import redis_client, sync_redis_client
 from bs4 import BeautifulSoup
-from email_service.logger_config import logger
 from email_service.models import EmailBox
 from email_service.schema import ImapEmailModel
+from infrastucture.email_processor import process_email
+from infrastucture.exceptions import EmailCredentialsError
+from infrastucture.logger_config import logger
+from infrastucture.tools import redis_client
 
 ID_HEADER_SET = {'Content-Type', 'From', 'To', 'Cc', 'Bcc', 'Date', 'Subject',
                  'Message-ID', 'In-Reply-To', 'References'}
@@ -227,7 +227,7 @@ class IMAPClient(EmailDecoder):
 
         while not self.should_stop:
             user_key = f'user:{self.user}'
-            user_data_str = sync_redis_client.sync_get_key(user_key)
+            user_data_str = redis_client.get_key(user_key)
             if user_data_str:
                 user_data = json.loads(user_data_str)
                 if not user_data['listening']:
@@ -267,7 +267,7 @@ class IMAPClient(EmailDecoder):
                 if retries == MAX_RETRIES:
                     logger.error(f'Не удалось переподключиться к {self.user} после {MAX_RETRIES} попыток.')
 
-                    user_data_str = sync_redis_client.sync_get_key(user_key)
+                    user_data_str = redis_client.get_key(user_key)
                     user_data = json.loads(user_data_str) if user_data_str else {}
                     email_box = await email_repo.get_by_email_username_for_user(self.telegram_id, self.user)
                     email_box_id = email_box.id
@@ -276,8 +276,8 @@ class IMAPClient(EmailDecoder):
                     else:
                         logger.error(f'Почтовый ящик для {self.user} не найден!')
                     user_data['listening'] = False
-                    sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
-                    await redis_client.delete_key(f'email_boxes_for_user_{self.user}')
+                    redis_client.set_key(user_key, json.dumps(user_data))
+                    redis_client.delete_key(f'email_boxes_for_user_{self.user}')
                     logger.info(f'Установлено значение listening в False для {self.user} в Redis.')
                     self.should_stop = True
         await imap_client.logout()
@@ -376,6 +376,6 @@ async def start_listening_all_emails() -> None:
         }
 
         try:
-            sync_redis_client.sync_set_key(user_key, json.dumps(user_data))
+            redis_client.set_key(user_key, json.dumps(user_data))
         except Exception as e:
             logger.error(e)

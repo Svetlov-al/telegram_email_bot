@@ -2,7 +2,7 @@ import re
 from typing import Any
 
 from api.services.box_filter_services import BoxFilterService
-from email_service.logger_config import logger
+from infrastucture.logger_config import logger
 from PIL import Image, ImageDraw, ImageFont
 
 filters = BoxFilterService

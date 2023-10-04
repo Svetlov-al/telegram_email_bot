@@ -101,6 +101,9 @@ SCHEDULE_TASK_PERIOD = int(os.getenv('SCHEDULE_TASK_PERIOD', 600))
 
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 CELERY_BEAT_SCHEDULE = {
     'email-listening-status': {
@@ -116,6 +119,5 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
-        'KEY_PREFIX': '',
-    }
+    },
 }
