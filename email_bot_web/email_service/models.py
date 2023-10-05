@@ -1,4 +1,3 @@
-from api.services.tools import redis_client
 from django.db import models
 from user.models import BotUser
 
@@ -18,14 +17,6 @@ class EmailService(models.Model):
     def __str__(self) -> str:
         return self.title
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        redis_client.delete_key('all_email_services')
-
-    def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-        redis_client.delete_key('all_email_services')
-
 
 class EmailBox(models.Model):
     """Модель почтового ящика."""
@@ -35,6 +26,7 @@ class EmailBox(models.Model):
                                       verbose_name='Почтовый сервис')
     email_username = models.CharField(max_length=64, verbose_name='Имя пользователя')
     email_password = models.CharField(max_length=256, verbose_name='Пароль')
+    listening = models.BooleanField(default=True, verbose_name='Слушает')
 
     class Meta:
         verbose_name = 'Почтовый ящик'

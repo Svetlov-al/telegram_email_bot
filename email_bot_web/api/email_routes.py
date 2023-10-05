@@ -2,11 +2,6 @@ from http import HTTPStatus
 
 from api.services.box_filter_services import BoxFilterService
 from api.services.email_services import EmailBoxService
-from api.services.exceptions import (
-    EmailBoxByUsernameNotFoundError,
-    EmailBoxWithFiltersCreationError,
-    EmailServicesNotFoundError,
-)
 from django.http import HttpRequest, JsonResponse
 from email_service.schema import (
     EmailBoxCreateSchema,
@@ -15,6 +10,18 @@ from email_service.schema import (
     EmailServiceSchema,
     ErrorSchema,
 )
+from infrastucture.exceptions import (
+    EmailAlreadyListeningError,
+    EmailBoxByUsernameNotFoundError,
+    EmailBoxWithFiltersAlreadyExist,
+    EmailBoxWithFiltersCreationError,
+    EmailCredentialsError,
+    EmailListeningError,
+    EmailServiceSlugDoesNotExist,
+    EmailServicesNotFoundError,
+    UserDataNotFoundError,
+)
+from infrastucture.tools import redis_client
 from ninja import Router
 
 emails = EmailBoxService
@@ -26,7 +33,7 @@ router_email = Router(tags=['Почтовые ящики'])
 @router_email.post(
     '',
     response={
-        HTTPStatus.CREATED: dict,
+        HTTPStatus.CREATED: dict[str, str],
         HTTPStatus.BAD_REQUEST: ErrorSchema
     },
     summary='Создание почтового ящика',
@@ -35,7 +42,43 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
     try:
         await emails.create_email_box_with_filters(data)
         return JsonResponse({'success': 'Email box created successfully'}, status=HTTPStatus.CREATED)
-    except EmailBoxWithFiltersCreationError as e:
+    except (EmailBoxWithFiltersCreationError, EmailBoxWithFiltersAlreadyExist, EmailCredentialsError) as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+    except EmailServiceSlugDoesNotExist as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
+
+
+@router_email.post(
+    'start_listening',
+    response={
+        HTTPStatus.OK: dict[str, str],
+        HTTPStatus.BAD_REQUEST: ErrorSchema
+    },
+    summary='Запуск отслеживания писем для почты',
+)
+async def start_listening(request: HttpRequest, data: EmailBoxRequestSchema):
+    try:
+        return await emails.start_listening_for_email(data.telegram_id, data.email_username)
+    except (UserDataNotFoundError, EmailServiceSlugDoesNotExist) as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
+    except EmailAlreadyListeningError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+
+
+@router_email.post(
+    'stop_listening',
+    response={
+        HTTPStatus.OK: dict[str, str],
+        HTTPStatus.BAD_REQUEST: ErrorSchema
+    },
+    summary='Остановка отслеживания писем для почты',
+)
+async def stop_listening(request: HttpRequest, data: EmailBoxRequestSchema):
+    try:
+        return await emails.stop_listening_for_email(data.telegram_id, data.email_username)
+    except (UserDataNotFoundError, EmailBoxByUsernameNotFoundError) as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
+    except EmailListeningError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
 
 
@@ -51,7 +94,7 @@ async def get_emailbox_by_username_for_user(request: HttpRequest, data: EmailBox
     try:
         email_box_data = await emails.get_email_box_by_username_for_user(data.telegram_id,
                                                                          data.email_username)
-        return EmailBoxOutputSchema.from_orm(email_box_data)
+        return email_box_data
     except EmailBoxByUsernameNotFoundError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
 
@@ -66,7 +109,19 @@ async def get_emailbox_by_username_for_user(request: HttpRequest, data: EmailBox
 )
 async def get_services(request: HttpRequest):
     try:
-        services = await emails.get_all_services()
-        return services
+        return await emails.get_all_domains()
     except EmailServicesNotFoundError:
-        return JsonResponse({'detail': 'Services not found'}, status=HTTPStatus.NOT_FOUND)
+        return JsonResponse({'detail': 'Domains not found'}, status=HTTPStatus.NOT_FOUND)
+
+
+@router_email.post(
+    '/clear_decorator_cache',
+    response={
+        HTTPStatus.OK: dict[str, str],
+        HTTPStatus.BAD_REQUEST: ErrorSchema
+    },
+    summary='Очищение всего кеша связанного с маршрутами'
+)
+async def clear_cache(request: HttpRequest):
+    redis_client.clear_decorator_cache()
+    return JsonResponse({'detail': 'Cache cleared'}, status=HTTPStatus.OK)

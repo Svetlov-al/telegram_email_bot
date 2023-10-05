@@ -16,8 +16,8 @@ class BoxFilterInline(admin.TabularInline):
 class BoxAdmin(admin.ModelAdmin):
     """Админ-панель модели почтового ящика."""
 
-    list_display = ('display_user', 'display_email_service', 'email_username')
-    list_filter = ('email_service__title',)
+    list_display = ('display_user', 'display_email_service', 'email_username', 'listening')
+    list_filter = ('email_service__title', 'listening')
     search_fields = ('email_username',)
 
     search_help_text = 'Поиск по имени пользователя'
@@ -26,7 +26,7 @@ class BoxAdmin(admin.ModelAdmin):
 
     inlines = (BoxFilterInline,)
 
-    def display_user(self, obj: EmailBox) -> str:
+    def display_user(self, obj: EmailBox) -> int:
         return obj.user_id.telegram_id
 
     display_user.short_description = 'Пользователь'  # type: ignore

@@ -84,6 +84,7 @@ class EmailBoxOutputSchema(Schema):
     user_id: int
     email_service: EmailServiceSchema
     email_username: str
+    listening: bool
     filters: list[BoxFilterSchema]
 
     class Config:
@@ -95,6 +96,7 @@ class EmailBoxOutputSchema(Schema):
             user_id=obj.user_id.telegram_id,
             email_service=EmailServiceSchema.from_orm(obj.email_service),
             email_username=obj.email_username,
+            listening=obj.listening,
             filters=[BoxFilterSchema.from_orm(filter_obj) for filter_obj in obj.filters.all()]
         )
 
@@ -103,3 +105,13 @@ class ErrorSchema(Schema):
     """Схема обработки ошибок"""
 
     detail: str
+
+
+class ImapEmailModel(Schema):
+    """Схема создания объекта письма"""
+
+    subject: str
+    from_: str
+    to: str
+    date: str
+    body: str

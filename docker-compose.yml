@@ -8,6 +8,7 @@ services:
       dockerfile: ./email_bot_web/Dockerfile
     restart: always
     container_name: web
+    command: ["./entrypoint.sh", "web"]
     volumes:
       - email_bot_static_value:/app/web-static/
       - email_bot_media_value:/app/web-media/
@@ -60,7 +61,7 @@ services:
         context: .
         dockerfile: ./email_bot_web/Dockerfile
       container_name: celery_worker
-      command: celery -A email_bot_web worker --loglevel=info
+      command: ["./entrypoint.sh", "celery"]
       depends_on:
         - web
         - db
@@ -73,13 +74,28 @@ services:
         context: .
         dockerfile: ./email_bot_web/Dockerfile
       container_name: celery_beat
-      command: celery -A email_bot_web beat --loglevel=info
+      command: ["./entrypoint.sh", "beat"]
       depends_on:
         - web
         - db
         - redis
       env_file:
       - .env
+
+  flower:
+    build:
+      context: .
+      dockerfile: ./email_bot_web/Dockerfile
+    env_file:
+      - .env
+    container_name: flower_app
+    command: ["./entrypoint.sh", "flower"]
+    depends_on:
+      - redis
+      - celery_beat
+      - celery_worker
+    ports:
+      - "5555:5555"
 
 volumes:
   email_bot_pgdata:

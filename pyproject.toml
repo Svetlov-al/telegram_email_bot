@@ -2,7 +2,7 @@
 name = "email-bot"
 version = "0.1.0"
 description = ""
-authors = ["Artem Menshikov <a.menshikov1989@gmail.com>"]
+authors = ["Alexandr Svetlov <s3t1qs@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -14,6 +14,13 @@ redis = "^5.0.0"
 celery = "^5.3.4"
 aiogram = "2.14.3"
 uvicorn = "^0.23.2"
+flower = "^2.0.1"
+aioimaplib = "^1.0.1"
+bs4 = "^0.0.1"
+chardet = "^5.2.0"
+types-chardet = "^5.0.4.6"
+pillow = "^10.0.1"
+django-redis = "^5.4.0"
 
 
 [build-system]

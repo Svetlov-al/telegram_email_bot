@@ -2,11 +2,6 @@ from http import HTTPStatus
 
 from api.services.box_filter_services import BoxFilterService
 from api.services.email_services import EmailBoxService
-from api.services.exceptions import (
-    BoxFilterCreationError,
-    BoxFiltersNotFoundError,
-    EmailBoxByUsernameNotFoundError,
-)
 from django.http import HttpRequest, JsonResponse
 from email_service.schema import (
     BoxFilterSchema,
@@ -14,10 +9,16 @@ from email_service.schema import (
     EmailBoxRequestSchema,
     ErrorSchema,
 )
+from infrastucture.exceptions import (
+    BoxFilterCreationError,
+    BoxFiltersNotFoundError,
+    EmailBoxByUsernameNotFoundError,
+)
 from ninja import Router
 
 emails = EmailBoxService
 filters = BoxFilterService
+
 
 router_filter = Router(tags=['Фильтры'])
 
@@ -25,22 +26,20 @@ router_filter = Router(tags=['Фильтры'])
 @router_filter.post(
     '/create',
     response={
-        HTTPStatus.CREATED: dict,
+        HTTPStatus.CREATED: dict[str, str],
         HTTPStatus.BAD_REQUEST: ErrorSchema
     },
     summary='Создание фильтра для почтового ящика',
 )
 async def create_filter_for_box(request: HttpRequest, data: CreateBoxFilterRequest):
     try:
-        email_box = await emails.get_email_box_by_username_for_user(data.telegram_id, data.email_username)
-    except EmailBoxByUsernameNotFoundError as e:
-        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
-
-    try:
-        await filters.create_box_filter(email_box, data.filter_data.filter_value, data.filter_data.filter_name)
+        await filters.create_box_filter(data.telegram_id, data.email_username,
+                                        data.filter_data.filter_value, data.filter_data.filter_name)
         return JsonResponse({'success': 'Filter created successfully'}, status=HTTPStatus.CREATED)
     except BoxFilterCreationError as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+    except EmailBoxByUsernameNotFoundError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
 
 
 @router_filter.post(
