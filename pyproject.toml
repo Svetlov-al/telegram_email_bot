@@ -21,6 +21,7 @@ chardet = "^5.2.0"
 types-chardet = "^5.0.4.6"
 pillow = "^10.0.1"
 django-redis = "^5.4.0"
+cryptography = "^41.0.4"
 
 
 [build-system]
