@@ -42,18 +42,21 @@ class EmailDecoder:
     def get_email_body(email_obj: Message) -> str:
         """Извлекает тело письма из объекта письма."""
 
-        body_parts = []
+        plain_body = None
+        html_body = None
 
         if email_obj.is_multipart():
             for part in email_obj.walk():
                 content_type = part.get_content_type()
                 charset = part.get_content_charset() or 'utf-8'
                 try:
-                    # Извлекаем только текстовую часть письма
-                    if content_type == 'text/plain':
-                        payload = part.get_payload(decode=True)
+                    payload = part.get_payload(decode=True)
+                    if payload:
                         decoded_payload = payload.decode(charset, errors='replace')
-                        body_parts.append(decoded_payload)
+                        if content_type == 'text/plain' and not plain_body:
+                            plain_body = decoded_payload
+                        elif content_type == 'text/html' and not html_body:
+                            html_body = decoded_payload
                 except Exception as e:
                     logger.error(e)
                     continue
@@ -61,14 +64,18 @@ class EmailDecoder:
             charset = email_obj.get_content_charset() or 'utf-8'
             try:
                 payload = email_obj.get_payload(decode=True)
-                decoded_payload = payload.decode(charset, errors='replace')
-                body_parts.append(decoded_payload)
+                if payload:
+                    plain_body = payload.decode(charset, errors='replace')
             except Exception as e:
                 logger.error(e)
                 pass
 
-        body = '\n\n'.join(body_parts)
-        return body
+        if html_body:
+            return html_body
+        elif plain_body:
+            return plain_body
+        else:
+            return ''
 
     def get_email_subject(self, email_obj: Message) -> str:
         return self.decode_header_content(email_obj['subject'])
