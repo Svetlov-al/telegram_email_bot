@@ -48,7 +48,7 @@ def cache_async(key_prefix='', schema=None, use_cache=True, expiration=3600):
             key = CACHE_PREFIX + key_prefix.format(**all_args)
 
             if use_cache:
-                cached_data_str = redis_tools.get_key(key)  # используем ваш метод get_key
+                cached_data_str = redis_tools.get_key(key)
                 if cached_data_str:
                     cached_data = json.loads(cached_data_str)
                     if schema:
