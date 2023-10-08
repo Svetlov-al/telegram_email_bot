@@ -1,6 +1,8 @@
 import json
+import re
 
 from api.repositories.repositories import (
+    BotUserRepository,
     BoxFilterRepository,
     EmailBoxRepository,
     EmailServiceRepository,
@@ -24,11 +26,13 @@ from infrastucture.exceptions import (
     EmailServiceSlugDoesNotExist,
     EmailServicesNotFoundError,
     UserDataNotFoundError,
+    UserNotFoundError,
 )
 from infrastucture.imap_listener import IMAPListener
 from infrastucture.logger_config import logger
 from infrastucture.tools import CACHE_PREFIX, cache_async, redis_client
 
+user_repo = BotUserRepository
 email_repo = EmailBoxRepository
 box_filter_repo = BoxFilterRepository
 email_domain_repo = EmailServiceRepository
@@ -55,6 +59,14 @@ class EmailBoxService:
         """Создает почтовый ящик с фильтрами для пользователя, запускает прослушку почты"""
 
         try:
+            email_username = data.email_username
+            if not email_username or not re.match(r'[^@]+@[^@]+\.[^@]+', email_username):
+                raise ValidationError('Invalid email_username provided.')
+
+            email_domain = await email_domain_repo.get_host_by_slug(data.email_service_slug)
+            if not email_domain:
+                raise EmailServiceSlugDoesNotExist(f'Email service with slug {data.email_service_slug} does not exist')
+
             email_box = await email_repo.get_by_email_username_for_user(data.user_id, data.email_username)
             if email_box:
                 raise EmailBoxWithFiltersAlreadyExist(
@@ -62,10 +74,6 @@ class EmailBoxService:
 
             email_box = await email_repo.create(data.user_id, data.email_service_slug,
                                                 data.email_username, data.email_password)
-
-            email_domain = await email_domain_repo.get_host_by_slug(data.email_service_slug)
-            if not email_domain:
-                raise EmailServiceSlugDoesNotExist(f'Email service with slug {data.email_service_slug} does not exist')
 
             await IMAPListener.create_and_start(host=email_domain.address,
                                                 user=data.email_username,
@@ -96,6 +104,10 @@ class EmailBoxService:
     async def get_email_boxes_for_user(telegram_id: int) -> list[EmailBoxOutputSchema]:
         """Сервисный слой получения списка почтовых ящиков пользователя через telegram_id"""
         try:
+            user = await user_repo.get_by_telegram_id(telegram_id)
+            if not user:
+                raise UserNotFoundError(f'User with telegram_id {telegram_id} not found.')
+
             email_boxes = await email_repo.get_all_boxes_for_user(telegram_id)
             return [EmailBoxOutputSchema.from_orm(box) for box in email_boxes]
         except ObjectDoesNotExist:

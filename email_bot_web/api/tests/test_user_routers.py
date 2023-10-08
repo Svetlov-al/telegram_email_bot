@@ -2,8 +2,7 @@ import json
 from typing import Callable
 
 import pytest
-from api.tests.fixtures.email_fixtures import EmailBoxData, EmailServiceFactory
-from api.tests.fixtures.user_fixtures import UserData
+from api.tests.fixtures.email_fixtures import EmailServiceFactory
 from email_service.models import BoxFilter, EmailBox
 from rest_framework.test import APIClient
 from user.models import BotUser
@@ -16,7 +15,7 @@ class TestUser:
 
     @pytest.mark.django_db
     def test_user_creation(self, create_bot_user: Callable[[int], BotUser],
-                           test_user_data: UserData
+                           test_user_data: dict[str, int]
                            ) -> None:
         """Тест фикстуры что создает пользователя в базе"""
 
@@ -25,7 +24,7 @@ class TestUser:
 
     @pytest.mark.django_db
     def test_create_user(self, api_client: APIClient,
-                         test_user_data: UserData
+                         test_user_data: dict[str, int]
                          ) -> None:
         """Тест создания пользоваля."""
 
@@ -39,7 +38,7 @@ class TestUser:
     @pytest.mark.django_db
     def test_get_user(self, api_client: APIClient,
                       create_bot_user: Callable[[int], BotUser],
-                      test_user_data: UserData) -> None:
+                      test_user_data: dict[str, int]) -> None:
         """Тест получения пользователя."""
 
         user = create_bot_user(test_user_data['telegram_id'])
@@ -52,7 +51,7 @@ class TestUser:
 
     @pytest.mark.django_db
     def test_get_does_not_exist_user(self, api_client: APIClient,
-                                     test_user_data: UserData
+                                     test_user_data: dict[str, int]
                                      ) -> None:
         """Тест получения несуществующего пользователя."""
 
@@ -64,7 +63,7 @@ class TestUser:
 
     @pytest.mark.django_db
     def test_create_already_exist_user(self, api_client: APIClient,
-                                       test_user_data: UserData,
+                                       test_user_data: dict[str, int],
                                        create_bot_user: Callable[[int], BotUser]
                                        ) -> None:
         """Тест создания пользователя с неверными данными."""
@@ -80,7 +79,7 @@ class TestUser:
     def test_user_without_boxes_and_filters(self,
                                             api_client: APIClient,
                                             create_bot_user: Callable[[int], BotUser],
-                                            test_user_data: UserData
+                                            test_user_data: dict[str, int]
                                             ) -> None:
         """Тест получения списка всех почтовых ящиков и фильтров пользователя."""
 
@@ -97,8 +96,8 @@ class TestUser:
             create_bot_user: Callable[[int], BotUser],
             create_email_box: Callable[..., EmailBox],
             create_box_filter: Callable[..., BoxFilter],
-            test_user_data: UserData,
-            test_email_data: EmailBoxData
+            test_user_data: dict[str, int],
+            test_email_data: dict[str, str]
     ) -> None:
         """Тест получения списка всех почтовых ящиков и фильтров пользователя."""
 

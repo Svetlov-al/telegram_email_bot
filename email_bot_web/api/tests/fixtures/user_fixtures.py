@@ -32,32 +32,5 @@ def create_bot_user() -> Callable[[int], BotUser]:
 def test_user_data() -> dict[str, str | int]:
     return {
         'telegram_id': 123456,
-        'email_username': 'example@example.com',
-        'content_type': 'application/json'
+        'email_username': 'example@example.com'
     }
-
-
-class UserData(TypedDict):
-    """
-    UserData TypedDict.
-
-    Описывает структуру данных пользователя, которая включает в себя:
-    - telegram_id: Уникальный идентификатор пользователя в Telegram.
-    - email_username: Имя пользователя для электронной почты.
-    - content_type: Тип содержимого, который используется при отправке данных.
-
-    Пример использования:
-    user_data = UserData(
-        telegram_id=123456,
-        email_username="example@example.com",
-        content_type="application/json"
-    )
-    """
-
-    telegram_id: int
-    email_username: str
-    content_type: str
-
-
-class CreateBotUserArgs(TypedDict):
-    telegram_id: int

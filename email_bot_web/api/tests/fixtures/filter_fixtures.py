@@ -18,7 +18,7 @@ class BoxFilterFactory(DjangoModelFactory):
 
 @pytest.fixture
 def create_box_filter(create_email_box) -> Callable:
-    def make_box_filter(**kwargs):
+    def make_box_filter(**kwargs) -> BoxFilter:
         return BoxFilterFactory(**kwargs)
 
     return make_box_filter
@@ -30,25 +30,3 @@ def test_filter_data() -> dict[str, str]:
         'filter_value': 'example@example.com',
         'filter_name': 'Yandex'
     }
-
-
-class FilterData(TypedDict):
-    """
-    FilterData TypedDict.
-
-    Описывает структуру данных для фильтра почтового ящика, которая включает в себя:
-    - box_id: Ссылка на объект почтового ящика (EmailBox), к которому применяется фильтр.
-    - filter_value: Значение фильтра, по которому происходит фильтрация сообщений.
-    - filter_name: Название или идентификатор фильтра, используемый для его идентификации.
-
-    Пример использования:
-    filter_data = FilterData(
-        box_id=email_box_instance,
-        filter_value="important@example.com",
-        filter_name="Вася пупкин"
-    )
-    """
-
-    box_id: EmailBox
-    filter_value: str
-    filter_name: str
