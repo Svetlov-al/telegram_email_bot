@@ -13,8 +13,7 @@ class TestEmails:
     """Класс для тестирования блока связанного с почтовыми ящиками"""
 
     @pytest.mark.django_db
-    def test_all_domains(self,
-                         api_client: APIClient
+    def test_all_domains(self, api_client: APIClient
                          ) -> None:
         """Тест получения пустого списка доступных доменов."""
 
@@ -23,9 +22,7 @@ class TestEmails:
         assert response.json() == []
 
     @pytest.mark.django_db
-    def test_not_empty_all_domains(self,
-                                   api_client: APIClient,
-                                   create_email_service: Callable[[], EmailService]
+    def test_not_empty_all_domains(self, api_client: APIClient, create_email_service: Callable[[], EmailService]
                                    ) -> None:
         """Тест получения списка доступных доментов"""
 
@@ -39,33 +36,25 @@ class TestEmails:
         assert response_data[0]['title'] == domain.title
 
     @pytest.mark.django_db
-    def test_create_already_exist_emailbox_with_filters(self,
-                                                        api_client: APIClient,
-                                                        create_bot_user: Callable[[int], BotUser],
+    def test_create_already_exist_emailbox_with_filters(self, api_client: APIClient,
                                                         create_email_box: Callable[..., EmailBox],
-                                                        create_email_service: Callable[..., EmailService],
-                                                        test_user_data: dict[str, int],
-                                                        test_email_data: dict[str, str],
                                                         test_filter_data: dict[str, str]
                                                         ) -> None:
         """Тест создания уже существующего почтового ящика."""
 
-        user = create_bot_user(test_user_data['telegram_id'])
-        email_service = create_email_service(slug='google')
-        create_email_box(user_id=user, email_service=email_service, **test_email_data)
-
+        email_box = create_email_box()
         email_box_data = {
-            'user_id': user.telegram_id,
-            'email_service_slug': email_service.slug,
-            'email_username': test_email_data['email_username'],
-            'email_password': test_email_data['email_password'],
+            'user_id': email_box.user_id.telegram_id,
+            'email_service_slug': email_box.email_service.slug,
+            'email_username': email_box.email_username,
+            'email_password': email_box.email_password,
             'filters': [test_filter_data]
         }
 
         response = api_client.post(f'{BASE_URL}', json.dumps(email_box_data), content_type='application/json')
         assert response.status_code == 400
         assert response.json()['detail'] == (f'Email box with username {email_box_data["email_username"]} '
-                                             f'already exists for user {user.telegram_id}')
+                                             f'already exists for user {email_box.user_id.telegram_id}')
 
     @pytest.mark.django_db
     def test_create_emailbox_with_nonexistent_service(self,
@@ -91,8 +80,7 @@ class TestEmails:
         assert response.json()['detail'] == f'Email service with slug {nonexistent_service_slug} does not exist'
 
     @pytest.mark.django_db
-    def test_create_emailbox_with_invalid_credentials(self,
-                                                      api_client: APIClient,
+    def test_create_emailbox_with_invalid_credentials(self, api_client: APIClient,
                                                       create_bot_user: Callable[[int], BotUser],
                                                       create_email_service: Callable[..., EmailService],
                                                       test_user_data: dict[str, int],
@@ -105,7 +93,7 @@ class TestEmails:
 
         email_service = create_email_service(slug='google')
 
-        invalid_email_data = test_email_data.copy()
+        invalid_email_data = test_email_data
         invalid_email_data['email_password'] = 'wrong_password'
 
         email_box_data = {
@@ -122,8 +110,7 @@ class TestEmails:
         assert response.json()['detail'] == 'Error with authorisation, check email or password!'
 
     @pytest.mark.django_db
-    def test_create_email_box_with_invalid_data(self,
-                                                api_client: APIClient,
+    def test_create_email_box_with_invalid_data(self, api_client: APIClient,
                                                 create_bot_user: Callable[[int], BotUser],
                                                 create_email_service: Callable[..., EmailService],
                                                 test_user_data: dict[str, int],
@@ -148,27 +135,17 @@ class TestEmails:
             'detail'] == "Error creating email box with filters: ['Invalid email_username provided.']"
 
     @pytest.mark.django_db
-    def test_get_emailbox_by_username_for_user(self,
-                                               api_client: APIClient,
-                                               create_bot_user: Callable[[int], BotUser],
-                                               create_email_box: Callable[..., EmailBox],
-                                               create_email_service: Callable[..., EmailService],
-                                               test_user_data: dict[str, int],
-                                               test_email_data: dict[str, str]
+    def test_get_emailbox_by_username_for_user(self, api_client: APIClient, create_email_box: Callable[..., EmailBox],
                                                ) -> None:
         """Тест получения информации о почтовом ящике по username для конкретного пользователя."""
 
-        user = create_bot_user(test_user_data['telegram_id'])
-        email_domain = create_email_service(slug='google')
-        create_email_box(user_id=user, email_service=email_domain,
-                         email_username=test_email_data['email_username'],
-                         email_password=test_email_data['email_password'])
+        email_box = create_email_box()
 
         response = api_client.post(f'{BASE_URL}/info', json.dumps({
-            'telegram_id': user.telegram_id,
-            'email_username': test_email_data['email_username']
+            'telegram_id': email_box.user_id.telegram_id,
+            'email_username': email_box.email_username
         }), content_type='application/json')
 
         assert response.status_code == 200
         assert len(response.json()) == 5
-        assert response.json()['email_username'] == test_email_data['email_username']
+        assert response.json()['email_username'] == email_box.email_username

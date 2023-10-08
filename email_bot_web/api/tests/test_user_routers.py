@@ -55,8 +55,7 @@ class TestUser:
                                      ) -> None:
         """Тест получения несуществующего пользователя."""
 
-        url = f"{BASE_URL}/{test_user_data['telegram_id']}"
-        response = api_client.get(url)
+        response = api_client.get(f"{BASE_URL}/{test_user_data['telegram_id']}")
 
         assert response.status_code == 404
         assert response.json()['detail'] == f"User with telegram_id {test_user_data['telegram_id']} not found."
@@ -76,9 +75,7 @@ class TestUser:
         assert response.json() == {'detail': f'User with telegram_id {user.telegram_id} already exists.'}
 
     @pytest.mark.django_db
-    def test_user_without_boxes_and_filters(self,
-                                            api_client: APIClient,
-                                            create_bot_user: Callable[[int], BotUser],
+    def test_user_without_boxes_and_filters(self, api_client: APIClient, create_bot_user: Callable[[int], BotUser],
                                             test_user_data: dict[str, int]
                                             ) -> None:
         """Тест получения списка всех почтовых ящиков и фильтров пользователя."""
@@ -90,38 +87,14 @@ class TestUser:
         assert response.json() == []
 
     @pytest.mark.django_db
-    def test_user_with_boxes_and_filters(
-            self,
-            api_client: APIClient,
-            create_bot_user: Callable[[int], BotUser],
-            create_email_box: Callable[..., EmailBox],
-            create_box_filter: Callable[..., BoxFilter],
-            test_user_data: dict[str, int],
-            test_email_data: dict[str, str]
-    ) -> None:
+    def test_user_with_boxes_and_filters(self, api_client: APIClient, create_box_filter: Callable[..., BoxFilter],
+                                         ) -> None:
         """Тест получения списка всех почтовых ящиков и фильтров пользователя."""
 
-        user = create_bot_user(test_user_data['telegram_id'])
+        box_filter = create_box_filter()
 
-        email_service = EmailServiceFactory(slug='some_service_slug')
+        response = api_client.get(f'{BASE_URL}/{box_filter.box_id.user_id.telegram_id}/boxes')
 
-        box_data = {
-            'user_id': user,
-            'email_service': email_service,
-            'email_username': test_email_data['email_username'],
-            'email_password': test_email_data['email_password'],
-        }
-
-        email_box = create_email_box(**box_data)
-
-        filter_data = {
-            'box_id': email_box,
-            'filter_value': 'some_filter_value',
-            'filter_name': 'some_filter_name'
-        }
-        box_filter = create_box_filter(**filter_data)
-
-        response = api_client.get(f'{BASE_URL}/{user.telegram_id}/boxes')
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]['filters'][0]['filter_value'] == box_filter.filter_value
