@@ -184,8 +184,7 @@ class IMAPClient(EmailDecoder):
                                                 telegram_id=self.telegram_id,
                                                 email_username=self.user,
                                                 imap_client=imap_client,
-                                                uid=new_max_uid,
-                                                mark_as_read_func=self.mark_as_read)
+                                                uid=new_max_uid)
                     else:
                         logger.error(f'error {response}')
                     return new_max_uid
@@ -314,10 +313,6 @@ class IMAPClient(EmailDecoder):
                     logger.info(f'Установлено значение listening в False для {self.user} в Redis.')
                     self.should_stop = True
         await imap_client.logout()
-
-    @staticmethod
-    async def mark_as_read(imap_client: aioimaplib.IMAP4_SSL, uid: int):
-        await imap_client.uid('store', str(uid), '+FLAGS', '(\\Seen)')
 
 
 class IMAPListener:

@@ -65,8 +65,27 @@ class EmailToImage:
             raise ValueError('Из данного письма невозможно сделать картинку')
 
 
+async def mark_as_read(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> None:
+    """
+    Отмечает указанное письмо как прочитанное на IMAP-сервере.
+
+    Эта функция использует IMAP-команду 'store' для установки флага 'Seen'
+    для письма с заданным UID. После выполнения этой функции, письмо будет
+    отображаться как прочитанное на почтовом сервере и в любых почтовых клиентах,
+    которые синхронизируются с этим сервером.
+
+    Параметры:
+    - imap_client (aioimaplib.IMAP4_SSL): Экземпляр IMAP-клиента для взаимодействия с IMAP-сервером.
+    - uid (int): Уникальный идентификатор письма, которое необходимо отметить как прочитанное.
+
+    Возвращает:
+    None: Функция не возвращает значений, но может вызвать исключения в случае ошибок.
+    """
+    await imap_client.uid('store', str(uid), '+FLAGS', '(\\Seen)')
+
+
 async def process_email(email_object: ImapEmailModel, telegram_id: int, email_username: str,
-                        uid: int, imap_client: aioimaplib.IMAP4_SSL, mark_as_read_func: Callable) -> None:
+                        uid: int, imap_client: aioimaplib.IMAP4_SSL) -> None:
 
     """Обработка письма, сортировка по фильтрам, преобразование в фотографию"""
 
@@ -89,7 +108,7 @@ async def process_email(email_object: ImapEmailModel, telegram_id: int, email_us
                 logger.info(f'Body: {email_object.body}')
 
                 # Отмечаем письмо как прочитанное в случае успешной фильтрации
-                await mark_as_read_func(imap_client, uid)
+                await mark_as_read(imap_client, uid)
 
     email_content = f"""
     Дата письма: {email_object.date}<br>
