@@ -17,8 +17,8 @@ class BotUserFactory(DjangoModelFactory):
 
 @pytest.fixture
 def api_client():
-    from rest_framework.test import APIClient
-    return APIClient()
+    from django.test import Client
+    return Client()
 
 
 @pytest.fixture
