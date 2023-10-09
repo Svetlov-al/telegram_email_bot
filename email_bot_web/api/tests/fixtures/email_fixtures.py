@@ -2,10 +2,10 @@ from typing import Callable
 
 import pytest
 from api.tests.fixtures.user_fixtures import BotUserFactory
+from django.test import Client
 from email_service.models import EmailBox, EmailService
 from factory import Sequence, SubFactory
 from factory.django import DjangoModelFactory
-from rest_framework.test import APIClient
 
 BASE_URL = '/api/v1/emailboxes'
 
@@ -57,7 +57,7 @@ def test_email_data() -> dict[str, str]:
 
 @pytest.fixture(autouse=True)
 def clear_decorator_cache_after_test():
-    client = APIClient()
+    client = Client()
     yield
     response = client.post(f'{BASE_URL}/clear_decorator_cache')
     assert response.status_code == 200

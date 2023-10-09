@@ -2,8 +2,8 @@ import json
 from typing import Callable
 
 import pytest
+from django.test import Client
 from email_service.models import EmailBox, EmailService
-from rest_framework.test import APIClient
 from user.models import BotUser
 
 BASE_URL = '/api/v1/emailboxes'
@@ -13,7 +13,7 @@ class TestEmails:
     """Класс для тестирования блока связанного с почтовыми ящиками"""
 
     @pytest.mark.django_db
-    def test_all_domains(self, api_client: APIClient
+    def test_all_domains(self, api_client: Client
                          ) -> None:
         """Тест получения пустого списка доступных доменов."""
 
@@ -22,7 +22,7 @@ class TestEmails:
         assert response.json() == []
 
     @pytest.mark.django_db
-    def test_not_empty_all_domains(self, api_client: APIClient, create_email_service: Callable[[], EmailService]
+    def test_not_empty_all_domains(self, api_client: Client, create_email_service: Callable[[], EmailService]
                                    ) -> None:
         """Тест получения списка доступных доментов"""
 
@@ -36,7 +36,7 @@ class TestEmails:
         assert response_data[0]['title'] == domain.title
 
     @pytest.mark.django_db
-    def test_create_already_exist_emailbox_with_filters(self, api_client: APIClient,
+    def test_create_already_exist_emailbox_with_filters(self, api_client: Client,
                                                         create_email_box: Callable[..., EmailBox],
                                                         test_filter_data: dict[str, str]
                                                         ) -> None:
@@ -58,7 +58,7 @@ class TestEmails:
 
     @pytest.mark.django_db
     def test_create_emailbox_with_nonexistent_service(self,
-                                                      api_client: APIClient,
+                                                      api_client: Client,
                                                       create_bot_user: Callable[[int], BotUser],
                                                       test_user_data: dict[str, int],
                                                       test_email_data: dict[str, str],
@@ -80,7 +80,7 @@ class TestEmails:
         assert response.json()['detail'] == f'Email service with slug {nonexistent_service_slug} does not exist'
 
     @pytest.mark.django_db
-    def test_create_emailbox_with_invalid_credentials(self, api_client: APIClient,
+    def test_create_emailbox_with_invalid_credentials(self, api_client: Client,
                                                       create_bot_user: Callable[[int], BotUser],
                                                       create_email_service: Callable[..., EmailService],
                                                       test_user_data: dict[str, int],
@@ -110,7 +110,7 @@ class TestEmails:
         assert response.json()['detail'] == 'Error with authorisation, check email or password!'
 
     @pytest.mark.django_db
-    def test_create_email_box_with_invalid_data(self, api_client: APIClient,
+    def test_create_email_box_with_invalid_data(self, api_client: Client,
                                                 create_bot_user: Callable[[int], BotUser],
                                                 create_email_service: Callable[..., EmailService],
                                                 test_user_data: dict[str, int],
@@ -135,7 +135,7 @@ class TestEmails:
             'detail'] == "Error creating email box with filters: ['Invalid email_username provided.']"
 
     @pytest.mark.django_db
-    def test_get_emailbox_by_username_for_user(self, api_client: APIClient, create_email_box: Callable[..., EmailBox],
+    def test_get_emailbox_by_username_for_user(self, api_client: Client, create_email_box: Callable[..., EmailBox],
                                                ) -> None:
         """Тест получения информации о почтовом ящике по username для конкретного пользователя."""
 

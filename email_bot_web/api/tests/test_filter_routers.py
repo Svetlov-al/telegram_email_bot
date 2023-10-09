@@ -2,8 +2,8 @@ import json
 from typing import Callable
 
 import pytest
+from django.test import Client
 from email_service.models import BoxFilter, EmailBox
-from rest_framework.test import APIClient
 from user.models import BotUser
 
 BASE_URL = '/api/v1/filters'
@@ -13,7 +13,7 @@ class TestFilters:
     """Класс для тестирования блока связанного с фильтрами"""
 
     @pytest.mark.django_db
-    def test_create_filter(self, api_client: APIClient,
+    def test_create_filter(self, api_client: Client,
                            create_box_filter: Callable[..., BoxFilter],
                            test_filter_data: dict[str, str]
                            ) -> None:
@@ -42,7 +42,7 @@ class TestFilters:
         assert filter_exists
 
     @pytest.mark.django_db
-    def test_get_filters_for_box_success(self, api_client: APIClient,
+    def test_get_filters_for_box_success(self, api_client: Client,
                                          create_email_box: Callable[..., EmailBox],
                                          create_box_filter: Callable[..., BoxFilter]
                                          ) -> None:
@@ -70,7 +70,7 @@ class TestFilters:
 
     @pytest.mark.django_db
     def test_get_filters_for_clean_box(self,
-                                       api_client: APIClient,
+                                       api_client: Client,
                                        create_email_box: Callable[..., EmailBox]
                                        ) -> None:
         """Тест получения фильтров для почтового ящика при их отсутствии."""
@@ -88,7 +88,7 @@ class TestFilters:
         assert response.json() == []
 
     @pytest.mark.django_db
-    def test_get_filters_for_unexisted_email_box(self, api_client: APIClient,
+    def test_get_filters_for_unexisted_email_box(self, api_client: Client,
                                                  create_bot_user: Callable[[int], BotUser],
                                                  test_user_data: dict[str, int]) -> None:
         """Тест получения фильтров для несуществующего почтового ящика"""
