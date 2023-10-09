@@ -29,6 +29,7 @@ email_domain_repo = EmailServiceRepository
 email_repo = EmailBoxRepository
 
 MAX_RETRIES = 5
+RETRY_DELAY = 5
 
 
 class EmailDecoder:
@@ -151,37 +152,53 @@ class IMAPClient(EmailDecoder):
 
     async def fetch_messages_headers(self, imap_client: aioimaplib.IMAP4_SSL, max_uid: int) -> tuple[int, bool]:
         is_seen = False
-        response = await imap_client.uid('fetch', '%d:*' % max_uid,
-                                         '(UID FLAGS BODY.PEEK[HEADER.FIELDS (%s)])' % ' '.join(ID_HEADER_SET))
-        new_max_uid = max_uid
-        last_message_headers = None
-        if response.result == 'OK':
-            for i in range(0, len(response.lines) - 1, 3):
-                fetch_command_without_literal = b'%s %s' % (response.lines[i], response.lines[i + 2])
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await imap_client.uid('fetch', '%d:*' % max_uid,
+                                                 '(UID FLAGS BODY.PEEK[HEADER.FIELDS (%s)])' % ' '.join(ID_HEADER_SET))
+                new_max_uid = max_uid
+                last_message_headers = None
+                if response.result == 'OK':
+                    uids_in_response = []  # список для хранения всех UID в ответе
+                    for i in range(0, len(response.lines) - 1, 3):
+                        fetch_command_without_literal = b'%s %s' % (response.lines[i], response.lines[i + 2])
+                        match_result = FETCH_MESSAGE_DATA_UID.match(fetch_command_without_literal)
+                        uid = 0
+                        if match_result:
+                            uid = int(match_result.group('uid'))
+                            uids_in_response.append(uid)
 
-                match_result = FETCH_MESSAGE_DATA_UID.match(fetch_command_without_literal)
-                uid = 0
-                if match_result:
-                    uid = int(match_result.group('uid'))
+                        # Проверка на UID и наличие флага прочитанного письма
+                        if uid > max_uid:
+                            last_message_headers = BytesHeaderParser().parsebytes(response.lines[i + 1])
+                            new_max_uid = uid
+                            # Проверка на флаг прочитанности
+                            if b'\\Seen' in response.lines[i + 2]:
+                                is_seen = True
 
-                # Проверка на UID и наличие флага прочитанного письма
-                if uid > max_uid:
-                    last_message_headers = BytesHeaderParser().parsebytes(response.lines[i + 1])
-                    new_max_uid = uid
-                    # Проверка на флаг прочитанности
-                    if b'\\Seen' in response.lines[i + 2]:
-                        is_seen = True
+                    if max_uid not in uids_in_response:
+                        new_max_uid = max(uids_in_response)  # обновляем max_uid на максимальный UID из ответа
 
-            if last_message_headers:
-                email_details = await self.fetch_message_details(imap_client, new_max_uid)
-                formatted_email_dict = self.format_email(email_details)
-                email_object = ImapEmailModel(**formatted_email_dict)
+                    if last_message_headers:
+                        email_details = await self.fetch_message_details(imap_client, new_max_uid)
+                        formatted_email_dict = self.format_email(email_details)
+                        email_object = ImapEmailModel(**formatted_email_dict)
 
-                if self.callback:
-                    await process_email(email_object, telegram_id=self.telegram_id, email_username=self.user)
-        else:
-            logger.error('error %s' % response)
-        return new_max_uid, is_seen
+                        if self.callback:
+                            await process_email(email_object, telegram_id=self.telegram_id, email_username=self.user)
+                    else:
+                        logger.error(f'error {response}')
+                    return new_max_uid, is_seen
+
+            except aioimaplib.aioimaplib.CommandTimeout:
+                logger.error(
+                    f'CommandTimeout error when fetching messages for UID {max_uid}. Attempt {attempt + 1} of {MAX_RETRIES}.')
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(RETRY_DELAY)
+                else:
+                    logger.error(f'Failed to fetch messages for UID {max_uid} after {MAX_RETRIES} attempts.')
+                    return max_uid, is_seen
+        return max_uid, is_seen
 
     @staticmethod
     async def fetch_message(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> Message:
@@ -220,8 +237,21 @@ class IMAPClient(EmailDecoder):
         logger.info(f'{self.user} - Подключение к серверу...')
         imap_client = aioimaplib.IMAP4_SSL(host=self.host, timeout=60)
         await imap_client.wait_hello_from_server()
-        logger.info(f'{self.user} - Авторизация...')
-        await imap_client.login(self.user, self.password)
+        # logger.info(f'{self.user} - Авторизация...')
+        for attempt in range(MAX_RETRIES):
+            try:
+                logger.info(f'{self.user} - Авторизация... Попытка {attempt + 1}')
+                await imap_client.login(self.user, self.password)
+                break
+            except asyncio.exceptions.TimeoutError:
+                logger.error(
+                    f'Ошибка авторизации из-за превышения времени ожидания. Попытка {attempt + 1} из {MAX_RETRIES}')
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(RETRY_DELAY)
+                else:
+                    logger.error(f'Не удалось авторизоваться после {MAX_RETRIES} попыток. Завершение работы.')
+                    return
+        # await imap_client.login(self.user, self.password)
         logger.info(f'{self.user} - Выбор папки INBOX...')
         await imap_client.select('INBOX')
 

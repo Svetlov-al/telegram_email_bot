@@ -11,7 +11,7 @@ RUN pip install poetry==1.5.1
 RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi --no-root --only main
 
-RUN apt update -y && apt install -y chromium
+RUN apt update -y && apt install -y chromium libvulkan1 libegl1-mesa
 
 RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox"' >> /etc/chromium.d/default-flags
 

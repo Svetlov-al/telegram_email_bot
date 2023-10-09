@@ -7,6 +7,7 @@ from typing import Any
 from api.services.box_filter_services import BoxFilterService
 from email_service.schema import ImapEmailModel
 from html2image import Html2Image
+from infrastucture.bot_utils import TelegramBotSender
 from infrastucture.logger_config import logger
 from PIL import Image
 
@@ -26,7 +27,8 @@ class EmailToImage:
             '--no-sandbox',
             '--headless',
             '--disable-gpu',
-            '--hide-scrollbars'
+            '--hide-scrollbars',
+            '--disable-vulkan'
         ]
 
         self.hti.size = (self.width, self.height)
@@ -44,19 +46,22 @@ class EmailToImage:
 
     def generate_image_to_send(self, text: str) -> io.BytesIO:
         """Метод преобразования текста в изображение для отправки в байтах."""
+        try:
+            temp_path = self.generate_unique_filename()
+            self.hti.screenshot(html_str=text, save_as=temp_path)
 
-        temp_path = self.generate_unique_filename()
-        self.hti.screenshot(html_str=text, save_as=temp_path)
+            # Загрузка изображения и сохранение его в байтовый поток
+            image = Image.open(temp_path)
+            byte_stream = io.BytesIO()
+            image.save(byte_stream, format='PNG')
+            byte_stream.seek(0)
 
-        # Загрузка изображения и сохранение его в байтовый поток
-        image = Image.open(temp_path)
-        byte_stream = io.BytesIO()
-        image.save(byte_stream, format='PNG')
-        byte_stream.seek(0)
+            os.remove(temp_path)
 
-        os.remove(temp_path)
-
-        return byte_stream
+            return byte_stream
+        except Exception as e:
+            logger.error(f'Ошибка при создании изображения из письма: {e}')
+            raise ValueError('Из данного письма невозможно сделать картинку')
 
 
 async def process_email(email_object: ImapEmailModel, telegram_id: int, email_username: str) -> None:
@@ -87,5 +92,10 @@ async def process_email(email_object: ImapEmailModel, telegram_id: int, email_us
     Тема: {email_object.subject}<br>
     Сообщение: {email_object.body}
     """
-    email_to_image = EmailToImage()
-    email_to_image.generate_image(email_content, EmailToImage.generate_unique_filename())
+
+    try:
+        email_to_image = EmailToImage()
+        our_image_to_send = email_to_image.generate_image_to_send(email_content)
+        await TelegramBotSender.send_image(chat_id=telegram_id, image_stream=our_image_to_send)
+    except ValueError as e:
+        logger.error(e)

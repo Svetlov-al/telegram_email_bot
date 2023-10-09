@@ -121,3 +121,7 @@ CACHES = {
         },
     },
 }
+
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+TELEGRAM_SEND_MESSAGE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+TELEGRAM_SEND_PHOTO_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"

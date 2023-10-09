@@ -1,6 +1,16 @@
 version: '3.8'
 
 services:
+  bot:
+    build:
+      context: .
+      dockerfile: ./bot/Dockerfile
+    restart: always
+    container_name: bot
+    depends_on:
+      - web
+    env_file:
+      - .env
 
   web:
     build:
