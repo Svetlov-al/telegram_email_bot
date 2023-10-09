@@ -150,8 +150,7 @@ class IMAPClient(EmailDecoder):
     def stop_listening(self):
         self.should_stop = True
 
-    async def fetch_messages_headers(self, imap_client: aioimaplib.IMAP4_SSL, max_uid: int) -> tuple[int, bool]:
-        is_seen = False
+    async def fetch_messages_headers(self, imap_client: aioimaplib.IMAP4_SSL, max_uid: int) -> int:
         for attempt in range(MAX_RETRIES):
             try:
                 response = await imap_client.uid('fetch', '%d:*' % max_uid,
@@ -168,16 +167,11 @@ class IMAPClient(EmailDecoder):
                             uid = int(match_result.group('uid'))
                             uids_in_response.append(uid)
 
-                        # Проверка на UID и наличие флага прочитанного письма
                         if uid > max_uid:
                             last_message_headers = BytesHeaderParser().parsebytes(response.lines[i + 1])
                             new_max_uid = uid
-                            # Проверка на флаг прочитанности
-                            if b'\\Seen' in response.lines[i + 2]:
-                                is_seen = True
 
                     if max_uid not in uids_in_response:
-                        # обновляем max_uid на максимальный UID из ответа
                         new_max_uid = max(uids_in_response)
 
                     if last_message_headers:
@@ -186,10 +180,15 @@ class IMAPClient(EmailDecoder):
                         email_object = ImapEmailModel(**formatted_email_dict)
 
                         if self.callback:
-                            await process_email(email_object, telegram_id=self.telegram_id, email_username=self.user)
+                            await process_email(email_object,
+                                                telegram_id=self.telegram_id,
+                                                email_username=self.user,
+                                                imap_client=imap_client,
+                                                uid=new_max_uid,
+                                                mark_as_read_func=self.mark_as_read)
                     else:
                         logger.error(f'error {response}')
-                    return new_max_uid, is_seen
+                    return new_max_uid
 
             except aioimaplib.aioimaplib.CommandTimeout:
                 logger.error(
@@ -198,8 +197,8 @@ class IMAPClient(EmailDecoder):
                     await asyncio.sleep(RETRY_DELAY)
                 else:
                     logger.error(f'Failed to fetch messages for UID {max_uid} after {MAX_RETRIES} attempts.')
-                    return max_uid, is_seen
-        return max_uid, is_seen
+                    return max_uid
+        return max_uid
 
     @staticmethod
     async def fetch_message(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> Message:
@@ -226,11 +225,10 @@ class IMAPClient(EmailDecoder):
         for msg in push_messages:
             if msg.endswith(b'EXISTS'):
                 imap_client.idle_done()
-                logger.info('new message: %r' % msg)
-                last_uid, is_seen = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
-                if last_uid > self.persistent_max_uid and not is_seen:
+                logger.info(f'new message: {msg!r}')
+                last_uid = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
+                if last_uid > self.persistent_max_uid:
                     self.persistent_max_uid = last_uid
-                    await self.mark_as_read(imap_client, self.persistent_max_uid)
                 return True
         return False
 
@@ -255,11 +253,10 @@ class IMAPClient(EmailDecoder):
         await imap_client.select('INBOX')
 
         # Проверка последнего письма перед началом прослушивания
-        last_uid, is_seen = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
-        if last_uid > self.persistent_max_uid and not is_seen:
+        last_uid = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
+        if last_uid > self.persistent_max_uid:
             # Если UID последнего письма больше сохраненного UID и письмо не прочитано, обрабатываем его
             self.persistent_max_uid = last_uid
-            await self.mark_as_read(imap_client, self.persistent_max_uid)
 
         while not self.should_stop:
             user_key = f'user:{self.user}'

@@ -2,8 +2,9 @@ import io
 import os
 import re
 import uuid
-from typing import Any
+from typing import Any, Callable
 
+from aioimaplib import aioimaplib
 from api.services.box_filter_services import BoxFilterService
 from email_service.schema import ImapEmailModel
 from html2image import Html2Image
@@ -64,7 +65,9 @@ class EmailToImage:
             raise ValueError('Из данного письма невозможно сделать картинку')
 
 
-async def process_email(email_object: ImapEmailModel, telegram_id: int, email_username: str) -> None:
+async def process_email(email_object: ImapEmailModel, telegram_id: int, email_username: str,
+                        uid: int, imap_client: aioimaplib.IMAP4_SSL, mark_as_read_func: Callable) -> None:
+
     """Обработка письма, сортировка по фильтрам, преобразование в фотографию"""
 
     list_of_filters: list[dict | Any] = await filters.get_filters_for_user_and_email(telegram_id, email_username)
@@ -84,6 +87,9 @@ async def process_email(email_object: ImapEmailModel, telegram_id: int, email_us
                 logger.info(f'To: {email_object.to}')
                 logger.info(f'Subject: {email_object.subject}')
                 logger.info(f'Body: {email_object.body}')
+
+                # Отмечаем письмо как прочитанное в случае успешной фильтрации
+                await mark_as_read_func(imap_client, uid)
 
     email_content = f"""
     Дата письма: {email_object.date}<br>
