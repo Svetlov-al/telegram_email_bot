@@ -159,7 +159,7 @@ class IMAPClient(EmailDecoder):
                 new_max_uid = max_uid
                 last_message_headers = None
                 if response.result == 'OK':
-                    uids_in_response = []  # список для хранения всех UID в ответе
+                    uids_in_response = []
                     for i in range(0, len(response.lines) - 1, 3):
                         fetch_command_without_literal = b'%s %s' % (response.lines[i], response.lines[i + 2])
                         match_result = FETCH_MESSAGE_DATA_UID.match(fetch_command_without_literal)
@@ -177,7 +177,8 @@ class IMAPClient(EmailDecoder):
                                 is_seen = True
 
                     if max_uid not in uids_in_response:
-                        new_max_uid = max(uids_in_response)  # обновляем max_uid на максимальный UID из ответа
+                        # обновляем max_uid на максимальный UID из ответа
+                        new_max_uid = max(uids_in_response)
 
                     if last_message_headers:
                         email_details = await self.fetch_message_details(imap_client, new_max_uid)
@@ -237,7 +238,6 @@ class IMAPClient(EmailDecoder):
         logger.info(f'{self.user} - Подключение к серверу...')
         imap_client = aioimaplib.IMAP4_SSL(host=self.host, timeout=60)
         await imap_client.wait_hello_from_server()
-        # logger.info(f'{self.user} - Авторизация...')
         for attempt in range(MAX_RETRIES):
             try:
                 logger.info(f'{self.user} - Авторизация... Попытка {attempt + 1}')
@@ -251,7 +251,6 @@ class IMAPClient(EmailDecoder):
                 else:
                     logger.error(f'Не удалось авторизоваться после {MAX_RETRIES} попыток. Завершение работы.')
                     return
-        # await imap_client.login(self.user, self.password)
         logger.info(f'{self.user} - Выбор папки INBOX...')
         await imap_client.select('INBOX')
 
@@ -269,7 +268,7 @@ class IMAPClient(EmailDecoder):
                 user_data = json.loads(user_data_str)
                 if not user_data['listening']:
                     self.should_stop = True
-            logger.info('%s starting idle' % self.user)
+            logger.info(f'{self.user} starting idle')
             try:
                 idle_task = await imap_client.idle_start(timeout=59)
                 push = await self.handle_server_push(imap_client, await imap_client.wait_server_push())
@@ -277,7 +276,7 @@ class IMAPClient(EmailDecoder):
                     imap_client.idle_done()
 
                 await wait_for(idle_task, timeout=300)
-                logger.info('%s ending idle' % self.user)
+                logger.info(f'{self.user} ending idle')
 
             except (TimeoutError, CancelledError):
                 logger.error(f'Превышено время ожидания на почте {self.user}! Перезапускаем режим idle...')
@@ -296,11 +295,11 @@ class IMAPClient(EmailDecoder):
                         logger.info(f'{self.user} - Выбор папки INBOX...')
                         await imap_client.select('INBOX')
                         await imap_client.idle_start(timeout=59)
-                        break  # если соединение установлено успешно
+                        break
                     except Exception as e:
                         logger.error(f'Ошибка при попытке переподключения для {self.user}: {e}')
                         retries += 1
-                        await asyncio.sleep(10)  # задержка перед следующей попыткой
+                        await asyncio.sleep(10)
                 if retries == MAX_RETRIES:
                     logger.error(f'Не удалось переподключиться к {self.user} после {MAX_RETRIES} попыток.')
 
