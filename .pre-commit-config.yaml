@@ -43,8 +43,8 @@ repos:
     rev: 6.0.0
     hooks:
     -   id: flake8
-        exclude: __init__.py|settings.py|manage.py|migrations
-        args: ["--ignore=E501,F821", "--max-line-length=120"]
+        exclude: __init__.py|settings.py|manage.py|migrations|conftest.py
+        args: ["--ignore=E501,F821,F401", "--max-line-length=120"]
 
 # Проверка статических типов с помощью mypy
 -   repo: https://github.com/pre-commit/mirrors-mypy

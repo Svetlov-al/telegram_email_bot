@@ -46,6 +46,8 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
     except EmailServiceSlugDoesNotExist as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
+    except TimeoutError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.REQUEST_TIMEOUT)
 
 
 @router_email.post(

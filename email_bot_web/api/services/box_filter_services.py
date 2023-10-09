@@ -24,7 +24,8 @@ class BoxFilterService:
             email_box = await email_repo.get_by_email_username_for_user(telegram_id, email_username)
             filter_obj = await box_filter_repo.create(email_box, filter_value, filter_name)
 
-            redis_client.delete_key(f'{CACHE_PREFIX}filters_for_{email_box.user_id}_{email_box.email_username}')
+            redis_client.delete_key(
+                f'{CACHE_PREFIX}filters_for_{email_box.user_id.telegram_id}_{email_box.email_username}')
 
             return filter_obj
         except ValidationError as e:

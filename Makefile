@@ -23,3 +23,14 @@ collectstatic:
 
 createsuperuser:
 	docker compose exec web python manage.py createsuperuser
+
+test:
+	docker compose up -d
+	docker compose exec web pytest
+	docker compose down
+
+test-build:
+	docker compose build
+	docker compose up -d
+	docker compose exec web pytest
+	docker compose down

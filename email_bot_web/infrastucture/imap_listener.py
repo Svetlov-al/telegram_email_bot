@@ -304,11 +304,15 @@ class IMAPListener:
         self.host = host
 
     async def start(self):
+        """Метод создания задачи на прослушивание почты."""
+
         if self._task is None:
             self._task = asyncio.create_task(self.imap_client.imap_loop())
             logger.info(f'Task for {self.user} was started!')
 
     async def stop(self):
+        """Метод остановки задачи на прослушивание почты."""
+
         if self._task:
             self.imap_client.stop_listening()
             await self._task
@@ -321,17 +325,22 @@ class IMAPListener:
         Возвращает True, если соединение и авторизация успешны.
         Генерирует исключение в случае ошибки.
         """
-        imap_client = aioimaplib.IMAP4_SSL(host=self.host, timeout=10)  # используем self.host
-        await imap_client.wait_hello_from_server()
-        login_response = await imap_client.login(self.user, self.password)
-        if login_response.result != 'OK':
-            return False
-        else:
-            return True
+        try:
+            imap_client = aioimaplib.IMAP4_SSL(host=self.host, timeout=10)
+            await imap_client.wait_hello_from_server()
+            login_response = await imap_client.login(self.user, self.password)
+            if login_response.result != 'OK':
+                return False
+            else:
+                return True
+        except TimeoutError:
+            raise TimeoutError('Connection to IMAP server timed out.')
 
     @classmethod
     async def create_and_start(cls, host: str, user: str, password: str, telegram_id: int,
                                callback: Callable | None = None) -> 'IMAPListener':
+        """Метод класса для проверки валидности предоставленных данных и запуска прослушивания в случае успеха."""
+
         listener = cls(
             host=host,
             user=user,
