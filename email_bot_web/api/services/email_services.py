@@ -72,14 +72,14 @@ class EmailBoxService:
                 raise EmailBoxWithFiltersAlreadyExist(
                     f'Email box with username {data.email_username} already exists for user {data.user_id}')
 
-            email_box = await email_repo.create(data.user_id, data.email_service_slug,
-                                                data.email_username, data.email_password)
-
             await IMAPListener.create_and_start(host=email_domain.address,
                                                 user=data.email_username,
                                                 password=data.email_password,
                                                 telegram_id=email_box.user_id.telegram_id,
                                                 callback=process_email)
+
+            email_box = await email_repo.create(data.user_id, data.email_service_slug,
+                                                data.email_username, data.email_password)
 
             user_key = f'user:{data.email_username}'
 

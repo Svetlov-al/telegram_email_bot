@@ -27,6 +27,7 @@ pytest-sugar = "^0.9.7"
 factory-boy = "^3.3.0"
 cryptography = "^41.0.4"
 html2image = "^2.0.4.3"
+httpx = "^0.25.0"
 
 
 [build-system]
