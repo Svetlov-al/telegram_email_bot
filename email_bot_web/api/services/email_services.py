@@ -1,4 +1,5 @@
 import json
+import os
 import re
 
 from api.repositories.repositories import (
@@ -7,6 +8,7 @@ from api.repositories.repositories import (
     EmailBoxRepository,
     EmailServiceRepository,
 )
+from crypto.crypto_utils import PasswordCipher
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from email_service.models import EmailBox
 from email_service.schema import (
@@ -72,10 +74,13 @@ class EmailBoxService:
                 raise EmailBoxWithFiltersAlreadyExist(
                     f'Email box with username {data.email_username} already exists for user {data.user_id}')
 
+            cipher = PasswordCipher(key=os.getenv('ENCRYPTION_KEY'))
+            decrypted_password = cipher.decrypt_password(data.email_password)
+
             await IMAPListener.create_and_start(host=email_domain.address,
                                                 user=data.email_username,
-                                                password=data.email_password,
-                                                telegram_id=email_box.user_id.telegram_id,
+                                                password=decrypted_password,
+                                                telegram_id=data.user_id,
                                                 callback=process_email)
 
             email_box = await email_repo.create(data.user_id, data.email_service_slug,
@@ -139,7 +144,10 @@ class EmailBoxService:
 
         await email_repo.set_listening_status(email_box.id, False)
 
-        redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
+        user_key_email_box = f'{CACHE_PREFIX}email_box_{telegram_id}_{email_username}'
+        user_key_email_boxes = f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}'
+        redis_client.delete_key(user_key_email_box)
+        redis_client.delete_key(user_key_email_boxes)
 
         user_data = json.loads(user_data_str)
         if user_data['listening']:
@@ -165,10 +173,14 @@ class EmailBoxService:
             if user_data['listening']:
                 raise EmailAlreadyListeningError(f'Listening for {email_username} was already started!')
 
+        cipher = PasswordCipher(key=os.getenv('ENCRYPTION_KEY'))
+
+        decrypted_password = cipher.decrypt_password(email_box.email_password.encode())
+
         listener = IMAPListener(
             host=email_domain.address,
             user=email_box.email_username,
-            password=email_box.email_password,
+            password=decrypted_password,
             telegram_id=email_box.user_id.telegram_id,
             callback=process_email
         )
@@ -176,7 +188,12 @@ class EmailBoxService:
         await listener.start()
 
         await email_repo.set_listening_status(email_box.id, True)
-        redis_client.delete_key(f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}')
+
+        user_key_email_box = f'{CACHE_PREFIX}email_box_{telegram_id}_{email_username}'
+        user_key_email_boxes = f'{CACHE_PREFIX}email_boxes_for_user_{telegram_id}'
+        redis_client.delete_key(user_key_email_box)
+        redis_client.delete_key(user_key_email_boxes)
+
         user_key = f'user:{email_box.email_username}'
         user_data = {
             'telegram_id': email_box.user_id.telegram_id,
@@ -186,6 +203,7 @@ class EmailBoxService:
 
         try:
             redis_client.set_key(user_key, json.dumps(user_data))
+
         except Exception as e:
             logger.error(f'Error while setting key in Redis: {e}')
         return {'detail': f'Listening {email_box.email_username} was started!'}

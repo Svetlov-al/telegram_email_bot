@@ -19,7 +19,8 @@ class BoxAdmin(admin.ModelAdmin):
     list_display = ('display_user', 'display_email_service', 'email_username', 'listening')
     list_filter = ('email_service__title', 'listening')
     search_fields = ('email_username',)
-
+    readonly_fields = ('email_username',)
+    exclude = ('email_password',)
     search_help_text = 'Поиск по имени пользователя'
 
     list_per_page = 50
@@ -51,11 +52,17 @@ class EmailServiceAdmin(admin.ModelAdmin):
 class FilterAdmin(admin.ModelAdmin):
     """Админ-панель модели фильтра почтового ящика."""
 
-    list_display = ('display_box', 'filter_value', 'filter_name')
-
+    list_display = ('display_user', 'display_box', 'filter_value', 'filter_name')
+    list_filter = ('box_id__user_id__telegram_id', 'box_id__email_username')
+    search_fields = ('box_id__email_username', 'box_id__user_id__telegram_id')
     list_per_page = 50
 
     def display_box(self, obj: BoxFilter) -> str:
         return obj.box_id.email_username
 
     display_box.short_description = 'Почтовый ящик'  # type: ignore
+
+    def display_user(self, obj: BoxFilter) -> int:
+        return obj.box_id.user_id.telegram_id
+
+    display_user.short_description = 'Пользователь'  # type: ignore
