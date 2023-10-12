@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import re
 from asyncio import CancelledError, TimeoutError, wait_for
 from collections import namedtuple
@@ -11,6 +12,7 @@ from typing import Callable, Collection
 import aioimaplib
 from api.repositories.repositories import EmailBoxRepository, EmailServiceRepository
 from bs4 import BeautifulSoup
+from crypto.crypto_utils import PasswordCipher
 from email_service.models import EmailBox
 from email_service.schema import ImapEmailModel
 from infrastucture.email_processor import process_email
@@ -239,17 +241,18 @@ class IMAPClient(EmailDecoder):
             try:
                 logger.info(f'{self.user} - Авторизация... Попытка {attempt + 1}')
                 await imap_client.login(self.user, self.password)
+                logger.info(f'{self.user} - Выбор папки INBOX...')
+                await imap_client.select('INBOX')
                 break
             except asyncio.exceptions.TimeoutError:
                 logger.error(
                     f'Ошибка авторизации из-за превышения времени ожидания. Попытка {attempt + 1} из {MAX_RETRIES}')
-                if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(RETRY_DELAY)
-                else:
+                if attempt == MAX_RETRIES - 1:
                     logger.error(f'Не удалось авторизоваться после {MAX_RETRIES} попыток. Завершение работы.')
-                    return
-        logger.info(f'{self.user} - Выбор папки INBOX...')
-        await imap_client.select('INBOX')
+            except aioimaplib.aioimaplib.Abort:
+                raise EmailCredentialsError(
+                    f'Не удалось авторизоваться для {self.user} после {MAX_RETRIES} попыток.')
+            await asyncio.sleep(RETRY_DELAY)
 
         # Проверка последнего письма перед началом прослушивания
         last_uid = await self.fetch_messages_headers(imap_client, self.persistent_max_uid)
@@ -394,10 +397,13 @@ async def start_listening_all_emails() -> None:
         if email_data.listening:
             host = email_domain.address
 
+            cipher = PasswordCipher(key=os.getenv('ENCRYPTION_KEY'))
+            decrypted_password = cipher.decrypt_password(email_data.email_password.encode())
+
             listener = IMAPListener(
                 host=host,
                 user=email_data.email_username,
-                password=email_data.email_password,
+                password=decrypted_password,
                 telegram_id=email_data.user_id.telegram_id,
                 callback=process_email
             )

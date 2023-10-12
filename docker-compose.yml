@@ -11,7 +11,8 @@ services:
       - web
     env_file:
       - .env
-
+    volumes:
+      - shared-data:/bot/crypto
   web:
     build:
       context: .
@@ -22,6 +23,7 @@ services:
     volumes:
       - email_bot_static_value:/app/web-static/
       - email_bot_media_value:/app/web-media/
+      - shared-data:/app/crypto
     depends_on:
       db:
         condition: service_healthy
@@ -116,3 +118,5 @@ volumes:
     name: email_bot_media_value
   email_bot_redis_data:
     name: email_bot_redis_data
+  shared-data:
+    name: email_bot_shared_data

@@ -3,6 +3,9 @@ import json
 from api.repositories.repositories import EmailBoxRepository
 from celery import shared_task
 from email_service.models import EmailBox
+from infrastucture.bot_utils import TelegramBotSender
+from infrastucture.image_create import EmailToImage
+from infrastucture.logger_config import logger
 from infrastucture.tools import redis_client
 
 email_repo = EmailBoxRepository
@@ -29,3 +32,17 @@ def sync_email_listening_status() -> None:
                 user_data['listening'] = db_status
                 redis_client.set_key(user_key, json.dumps(user_data))
     return
+
+
+@shared_task
+def handle_email_to_image(email_content: str,
+                          telegram_id: int,
+                          email_sender) -> None:
+    try:
+        email_to_image = EmailToImage()
+        our_image_to_send = email_to_image.generate_image_to_send(email_content)
+        notification_text = f'<b>Поступило новое письмо от:\n{email_sender}</b>\n'
+        TelegramBotSender.send_image_sync(chat_id=telegram_id, image_stream=our_image_to_send,
+                                          text=notification_text)
+    except ValueError as e:
+        logger.error(e)

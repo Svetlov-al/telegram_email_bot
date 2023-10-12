@@ -71,7 +71,7 @@ class EmailBoxCreateSchema(Schema):
     user_id: int
     email_service_slug: str
     email_username: str
-    email_password: str
+    email_password: str | bytes
     filters: list[BoxFilterSchema]
 
     class Config:

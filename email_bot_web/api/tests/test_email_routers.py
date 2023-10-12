@@ -1,7 +1,9 @@
 import json
 from typing import Callable
+from unittest.mock import patch
 
 import pytest
+from crypto.crypto_utils import PasswordCipher
 from django.test import Client
 from email_service.models import EmailBox, EmailService
 from user.models import BotUser
@@ -90,7 +92,6 @@ class TestEmails:
         """Тест проверки корректности предоставленных данных для прослушивания почты."""
 
         user = create_bot_user(test_user_data['telegram_id'])
-
         email_service = create_email_service(slug='google')
 
         invalid_email_data = test_email_data
@@ -104,7 +105,9 @@ class TestEmails:
             'filters': [test_filter_data]
         }
 
-        response = api_client.post(f'{BASE_URL}', json.dumps(email_box_data), content_type='application/json')
+        with patch.object(PasswordCipher, 'encrypt_password', return_value=b'encrypted_password'), \
+                patch.object(PasswordCipher, 'decrypt_password', return_value='decrypted_password'):
+            response = api_client.post(f'{BASE_URL}', json.dumps(email_box_data), content_type='application/json')
 
         assert response.status_code == 400
         assert response.json()['detail'] == 'Error with authorisation, check email or password!'

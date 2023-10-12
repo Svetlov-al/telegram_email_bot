@@ -63,7 +63,7 @@ async def start_listening(request: HttpRequest, data: EmailBoxRequestSchema):
         return await emails.start_listening_for_email(data.telegram_id, data.email_username)
     except (UserDataNotFoundError, EmailServiceSlugDoesNotExist) as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
-    except EmailAlreadyListeningError as e:
+    except (EmailAlreadyListeningError, EmailCredentialsError) as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
 
 
