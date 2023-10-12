@@ -31,6 +31,50 @@ async def mark_as_read(imap_client: aioimaplib.IMAP4_SSL, uid: int) -> None:
     await imap_client.uid('store', str(uid), '+FLAGS', '(\\Seen)')
 
 
+def email_to_html(email_data: dict[str, Any]) -> str:
+    """Конвертирует данные пиьсма в HTML формат."""
+    return f"""
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                    }}
+                    .email-header {{
+                        background-color: #f2f2f2;
+                        padding: 10px;
+                        margin-bottom: 20px;
+                    }}
+                    .email-body {{
+                        margin-bottom: 20px;
+                    }}
+                    .email-attachments {{
+                        margin-top: 20px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="email-header">
+                    <p><b>Тема:</b> {email_data['Subject']}</p>
+                    <p><b>От кого:</b> {email_data['From']}</p>
+                    <p><b>Кому:</b> {email_data['To']}</p>
+                    <p><b>Дата:</b> {email_data['Date']}</p>
+                </div>
+                <div class="email-body">
+                    {email_data['Body']['html_body']}
+                </div>
+                <div class="email-attachments">
+                    <b>Attachments:</b>
+                    <ul>
+                        {''.join([f'<li>{name}</li>' for name in email_data['Body']['attachment_names']])}
+                    </ul>
+                </div>
+            </body>
+            </html>
+        """
+
+
 async def process_email(email_object: ImapEmailModel, telegram_id: int, email_username: str,
                         uid: int, imap_client: aioimaplib.IMAP4_SSL) -> None:
     """Обработка письма, сортировка по фильтрам, преобразование в фотографию"""
@@ -53,12 +97,16 @@ async def process_email(email_object: ImapEmailModel, telegram_id: int, email_us
                 logger.info(f'Body: {email_object.body}')
                 await mark_as_read(imap_client, uid)
 
-                email_content = f"""
-                    <h3><u>Дата письма: {email_object.date}</h3></u><br>
-                    <h3><u>От кого: {email_object.from_}</h3></u><br>
-                    <h3><u>Кому: {email_object.to}</h3></u><br>
-                    <h3><u>Тема: {email_object.subject}</h3></u><br>
-                    <h3><u>Сообщение:<h3><u>
-                    {email_object.body}
-                    """
-                handle_email_to_image.delay(email_content, telegram_id, email_sender)
+                email_data = {
+                    'Subject': email_object.subject,
+                    'From': email_object.from_,
+                    'To': email_object.to,
+                    'Date': email_object.date,
+                    'Body': {
+                        'html_body': email_object.body,
+                        'attachment_names': []
+                    }
+                }
+
+                content = email_to_html(email_data)
+                handle_email_to_image.delay(content, telegram_id, email_sender)
