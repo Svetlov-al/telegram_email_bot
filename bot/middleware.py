@@ -1,7 +1,10 @@
 import asyncio
 import os
+from datetime import datetime, timedelta
+from typing import Callable, Union
 
 from aiogram import Dispatcher, types
+from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.handler import CancelHandler, current_handler
 from aiogram.dispatcher.middlewares import BaseMiddleware, LifetimeControllerMiddleware
 from aiogram.utils.exceptions import MessageToDeleteNotFound, Throttled
@@ -20,62 +23,67 @@ class BackendServiceMiddleware(LifetimeControllerMiddleware):
 
 
 class ThrottlingMiddleware(BaseMiddleware):
+    """Мидлвар для ограничения количества запросов."""
 
     def __init__(self, limit=DEFAULT_RATE_LIMIT, key_prefix='antiflood_'):
         self.rate_limit = limit
         self.prefix = key_prefix
         super().__init__()
 
-    async def throttle(self, target: types.Message | types.CallbackQuery):
+    async def on_process_message(self, message: types.Message, data: dict) -> None:
+        """Проверка ограничения при выполнении."""
         handler = current_handler.get()
         dispatcher = Dispatcher.get_current()
-        if not handler:
-            return
+
+        state_data: FSMContext = data.get('state')
+        data = await state_data.get_data()
         limit = getattr(handler, 'throttling_rate_limit', self.rate_limit)
-        key = getattr(handler, 'throttling_key', f'{self.prefix}_{handler.__name__}')
+        key = getattr(
+            handler,
+            'throttling_key',
+            f'{self.prefix}_{handler.__name__}_{message.chat.id}',
+        ).format(**data)
 
         try:
             await dispatcher.throttle(key, rate=limit)
         except Throttled as t:
-            await self.target_throttled(target, t, dispatcher, key)
+            await message.reply(
+                f'Эту операцию нельзя выполнить чаще чем 1 раз в {t.rate:.0f}'
+                f' секунд.\nС прошлого выполнения прошло {t.delta:.0f} секунд.'
+                f'\nПопробуйте снова через {t.rate:.0f} секунд.'
+            )
             raise CancelHandler()
 
-    @staticmethod
-    async def target_throttled(target: types.Message | types.CallbackQuery,
-                               throttled: Throttled, dispatcher: Dispatcher, key: str):
-        msg = target.message if isinstance(target, types.CallbackQuery) else target
-        delta = throttled.rate - throttled.delta
+    async def on_process_callback_query(self, callback_query: types.CallbackQuery, data: dict) -> None:
+        """Проверка ограничения при выполнении колбэка."""
+        handler = current_handler.get()
+        dispatcher = Dispatcher.get_current()
 
-        info_msg = await msg.reply(f'Функция изменения статуса прослушивания доступна раз в 3 минуты.\n'
-                                   f'⚠ Пожалуйста, подождите {round(delta, 1)} секунд перед следующим вызовом.')
+        state_data: FSMContext = data.get('state')
+        data = await state_data.get_data()
+        limit = getattr(handler, 'throttling_rate_limit', self.rate_limit)
+        key = getattr(
+            handler,
+            'throttling_key',
+            f'{self.prefix}_{handler.__name__}_{callback_query.from_user.id}',
+        ).format(**data)
 
-        await asyncio.sleep(5)
         try:
-            await msg.bot.delete_message(chat_id=msg.chat.id, message_id=info_msg.message_id)
-        except MessageToDeleteNotFound:
-            pass
-        await asyncio.sleep(delta - 5)
-        thr = await dispatcher.check_key(key)
-        if thr.exceeded_count == throttled.exceeded_count:
-            info_msg = await msg.reply('⚠ Все, теперь отвечаю.')
-            try:
-                await asyncio.sleep(5)
-                await msg.bot.delete_message(chat_id=msg.chat.id, message_id=info_msg.message_id)
-            except MessageToDeleteNotFound:
-                pass
-
-    async def on_process_message(self, message, data):  # noqa
-        await self.throttle(message)
-
-    async def on_process_callback_query(self, call, data):  # noqa
-        await self.throttle(call)
+            await dispatcher.throttle(key, rate=limit)
+        except Throttled as t:
+            await callback_query.answer(
+                f'Эту операцию нельзя выполнить чаще чем 1 раз в {t.rate:.0f}'
+                f' секунд.\nС прошлого выполнения прошло {t.delta:.0f} секунд.'
+                f'\nПопробуйте снова через {t.rate:.0f} секунд.',
+                show_alert=True
+            )
+            raise CancelHandler()
 
 
-def rate_limit(limit: int, key=None):
+def rate_limit(limit: int, key: str) -> Callable:
+    """Декоратор для ограничения количества запросов."""
     def decorator(func):
         setattr(func, 'throttling_rate_limit', limit)
-        if key:
-            setattr(func, 'throttling_key', key)
+        setattr(func, 'throttling_key', key)
         return func
-
     return decorator
