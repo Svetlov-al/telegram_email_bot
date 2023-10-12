@@ -54,10 +54,11 @@ async def process_email(email_object: ImapEmailModel, telegram_id: int, email_us
                 await mark_as_read(imap_client, uid)
 
                 email_content = f"""
-                    Дата письма: {email_object.date}<br>
-                    От кого: {email_object.from_}<br>
-                    Кому: {email_object.to}<br>
-                    Тема: {email_object.subject}<br>
-                    Сообщение: {email_object.body}
+                    <h3><u>Дата письма: {email_object.date}</h3></u><br>
+                    <h3><u>От кого: {email_object.from_}</h3></u><br>
+                    <h3><u>Кому: {email_object.to}</h3></u><br>
+                    <h3><u>Тема: {email_object.subject}</h3></u><br>
+                    <h3><u>Сообщение:<h3><u>
+                    {email_object.body}
                     """
                 handle_email_to_image.delay(email_content, telegram_id, email_sender)

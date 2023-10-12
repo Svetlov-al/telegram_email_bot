@@ -24,6 +24,10 @@ class EmailToImage:
 
         self.hti.size = (self.width, self.height)
 
+    IMAGE_MIN_WIDTH = 300
+    IMAGE_MIN_HEIGHT = 300
+    IMAGE_PADDING = 20
+
     @classmethod
     def generate_unique_filename(cls, extension: str = '.png') -> str:
         """Метод генерации уникального имени файла."""
@@ -41,10 +45,36 @@ class EmailToImage:
             temp_path = self.generate_unique_filename()
             self.hti.screenshot(html_str=text, save_as=temp_path)
 
-            # Загрузка изображения и сохранение его в байтовый поток
             image = Image.open(temp_path)
+            image = image.convert('RGBA')
+
+            width, height = image.size
+            for x in range(width):
+                for y in range(height):
+                    r, g, b, a = image.getpixel((x, y))
+                    if r == 255 and g == 255 and b == 255:
+                        image.putpixel((x, y), (r, g, b, 0))
+
+            bbox = image.getbbox()
+            x_min, y_min, x_max, y_max = bbox
+            x_min -= self.IMAGE_PADDING
+            y_min -= self.IMAGE_PADDING
+            x_max += self.IMAGE_PADDING
+            y_max += self.IMAGE_PADDING
+            cropped_image = image.crop((x_min, y_min, x_max, y_max))
+
+            cropped_width, cropped_height = cropped_image.size
+            if cropped_width < self.IMAGE_MIN_WIDTH:
+                left = (cropped_width - self.IMAGE_MIN_WIDTH) // 2
+                right = left + self.IMAGE_MIN_WIDTH
+                cropped_image = cropped_image.crop((left, 0, right, cropped_height))
+            if cropped_height < self.IMAGE_MIN_HEIGHT:
+                top = (cropped_height - self.IMAGE_MIN_HEIGHT) // 2
+                bottom = top + self.IMAGE_MIN_HEIGHT
+                cropped_image = cropped_image.crop((0, top, cropped_width, bottom))
+
             byte_stream = io.BytesIO()
-            image.save(byte_stream, format='PNG')
+            cropped_image.save(byte_stream, format='PNG')
             byte_stream.seek(0)
 
             os.remove(temp_path)
