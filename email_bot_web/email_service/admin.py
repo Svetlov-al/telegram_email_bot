@@ -1,3 +1,7 @@
+from admin_utils.admin_actions import (
+    delete_email_boxes_and_clear_cache,
+    delete_filters_and_clear_chache,
+)
 from django.contrib import admin
 from email_service.models import BoxFilter, EmailBox, EmailService
 
@@ -15,6 +19,8 @@ class BoxFilterInline(admin.TabularInline):
 @admin.register(EmailBox)
 class BoxAdmin(admin.ModelAdmin):
     """Админ-панель модели почтового ящика."""
+
+    actions = [delete_email_boxes_and_clear_cache]
 
     list_display = ('display_user', 'display_email_service', 'email_username', 'listening')
     list_filter = ('email_service__title', 'listening')
@@ -37,6 +43,12 @@ class BoxAdmin(admin.ModelAdmin):
 
     display_email_service.short_description = 'Почтовый сервис'  # type: ignore
 
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
 
 @admin.register(EmailService)
 class EmailServiceAdmin(admin.ModelAdmin):
@@ -52,6 +64,8 @@ class EmailServiceAdmin(admin.ModelAdmin):
 class FilterAdmin(admin.ModelAdmin):
     """Админ-панель модели фильтра почтового ящика."""
 
+    actions = [delete_filters_and_clear_chache]
+
     list_display = ('display_user', 'display_box', 'filter_value', 'filter_name')
     list_filter = ('box_id__user_id__telegram_id', 'box_id__email_username')
     search_fields = ('box_id__email_username', 'box_id__user_id__telegram_id')
@@ -66,3 +80,9 @@ class FilterAdmin(admin.ModelAdmin):
         return obj.box_id.user_id.telegram_id
 
     display_user.short_description = 'Пользователь'  # type: ignore
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions

@@ -266,7 +266,9 @@ class IMAPClient(EmailDecoder):
             if user_data_str:
                 user_data = json.loads(user_data_str)
                 if not user_data['listening']:
-                    self.should_stop = True
+                    break
+            else:
+                break
             logger.info(f'{self.user} starting idle')
             try:
                 idle_task = await imap_client.idle_start(timeout=59)
