@@ -42,8 +42,10 @@ async def create_emailbox(request: HttpRequest, data: EmailBoxCreateSchema):
     try:
         await emails.create_email_box_with_filters(data)
         return JsonResponse({'success': 'Email box created successfully'}, status=HTTPStatus.CREATED)
-    except (EmailBoxWithFiltersCreationError, EmailBoxWithFiltersAlreadyExist, EmailCredentialsError) as e:
+    except (EmailBoxWithFiltersCreationError, EmailBoxWithFiltersAlreadyExist) as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.BAD_REQUEST)
+    except EmailCredentialsError as e:
+        return JsonResponse({'detail': str(e)}, status=HTTPStatus.UNAUTHORIZED)
     except EmailServiceSlugDoesNotExist as e:
         return JsonResponse({'detail': str(e)}, status=HTTPStatus.NOT_FOUND)
     except TimeoutError as e:
