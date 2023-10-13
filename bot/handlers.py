@@ -316,6 +316,14 @@ async def confirm_email_create_handler(callback: CallbackQuery, state: FSMContex
         media = InputMediaPhoto(media=FAIL_LISTENING, caption=f'❌ Ошибка: {error_detail}',
                                 parse_mode=ParseMode.HTML)
         await callback.message.edit_media(media=media, reply_markup=main_menu_kb)
+    elif response.status_code == 401:
+        error_detail = response.json().get('detail', 'Неизвестная ошибка')
+        media = InputMediaPhoto(media=FAIL_LISTENING,
+                                caption='❌ Ошибка <b>логина или пароля</b>!\n'
+                                        'Проверьте данные и попробуйте провести регистрацию снова,\n'
+                                        'или воспользуйтесь <b>инструкцией</b> по регистрации!',
+                                parse_mode=ParseMode.HTML)
+        await callback.message.edit_media(media=media, reply_markup=main_menu_kb)
 
 
 @dp.callback_query_handler(lambda c: c.data == 'show_my_emailboxes', state=BotStates.MainMenuState)
