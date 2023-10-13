@@ -41,6 +41,10 @@ from utils import (
     get_available_services,
 )
 
+FILTER_NAME_LENGHT = 128
+FILTER_VALUE_LENGHT = 256
+EMAIL_USERNAME_LENGHT = 64
+
 
 @dp.message_handler(commands=['start'], state='*')
 async def send_welcome(message: Message, backend_service: BackendConnector):
@@ -170,7 +174,7 @@ async def select_email_domain_handler(callback: CallbackQuery, state: FSMContext
 
 @dp.message_handler(state=RegistrationBox.WaitForUserNameState)
 async def process_username(message: Message, state: FSMContext):
-    if re.match(EMAIL_REGEX, message.text) and len(message.text) <= 64:
+    if re.match(EMAIL_REGEX, message.text) and len(message.text) <= EMAIL_USERNAME_LENGHT:
 
         username = message.text.strip()
         await state.update_data(username=username)
@@ -215,9 +219,9 @@ async def process_password(message: Message, state: FSMContext):
 @dp.message_handler(state=RegistrationBox.WaitForFilterNameState)
 async def process_filter_name(message: Message, state: FSMContext):
     filter_name = message.text.strip()
-    if len(filter_name) > 128:
+    if len(filter_name) > FILTER_NAME_LENGHT:
         fail_message = await message.answer(
-            'Введено слишком длинное название фильтра(Максимум 128 знаков)')
+            f'Введено слишком длинное название фильтра(Максимум {FILTER_NAME_LENGHT} знаков)')
         await asyncio.sleep(5)
         await message.delete()
         await bot.delete_message(chat_id=message.chat.id, message_id=fail_message.message_id)
@@ -243,7 +247,7 @@ async def process_filter_name(message: Message, state: FSMContext):
 
 @dp.message_handler(state=RegistrationBox.WaitForFilterValueState)
 async def process_filter_value(message: Message, state: FSMContext):
-    if re.match(EMAIL_REGEX, message.text) and len(message.text) <= 256:
+    if re.match(EMAIL_REGEX, message.text) and len(message.text) <= FILTER_VALUE_LENGHT:
         filter_value = message.text.strip()
         await state.update_data(filter_value=filter_value)
         user_data = await state.get_data()
@@ -383,9 +387,9 @@ async def add_new_filter(callback: CallbackQuery, state: FSMContext):
 @dp.message_handler(state=RegistrationBox.WaitForNewFilterNameState)
 async def process_new_filter_name(message: Message, state: FSMContext):
     filter_name = message.text.strip()
-    if len(filter_name) > 128:
+    if len(filter_name) > FILTER_NAME_LENGHT:
         fail_message = await message.answer(
-            'Введено слишком длинное название фильтра(Максимум 128 знаков)')
+            f'Введено слишком длинное название фильтра(Максимум {FILTER_NAME_LENGHT} знаков)')
         await asyncio.sleep(5)
         await message.delete()
         await bot.delete_message(chat_id=message.chat.id, message_id=fail_message.message_id)
@@ -405,7 +409,7 @@ async def process_new_filter_name(message: Message, state: FSMContext):
 
 @dp.message_handler(state=RegistrationBox.WaitForNewFilterValueState)
 async def process_new_filter_value(message: Message, state: FSMContext):
-    if re.match(EMAIL_REGEX, message.text) and len(message.text) <= 256:
+    if re.match(EMAIL_REGEX, message.text) and len(message.text) <= FILTER_VALUE_LENGHT:
         filter_value = message.text.strip()
         await state.update_data(filter_value=filter_value)
         user_data = await state.get_data()
