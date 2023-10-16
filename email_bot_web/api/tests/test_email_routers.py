@@ -109,7 +109,7 @@ class TestEmails:
                 patch.object(PasswordCipher, 'decrypt_password', return_value='decrypted_password'):
             response = api_client.post(f'{BASE_URL}', json.dumps(email_box_data), content_type='application/json')
 
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json()['detail'] == 'Error with authorisation, check email or password!'
 
     @pytest.mark.django_db
