@@ -15,10 +15,10 @@ from bs4 import BeautifulSoup
 from crypto.crypto_utils import PasswordCipher
 from email_service.models import EmailBox
 from email_service.schema import ImapEmailModel
-from infrastucture.email_processor import process_email
-from infrastucture.exceptions import EmailCredentialsError
-from infrastucture.logger_config import logger
-from infrastucture.tools import redis_client
+from infrastructure.email_processor import process_email
+from infrastructure.exceptions import EmailCredentialsError
+from infrastructure.logger_config import logger
+from infrastructure.tools import redis_client
 
 ID_HEADER_SET = {'Content-Type', 'From', 'To', 'Cc', 'Bcc', 'Date', 'Subject',
                  'Message-ID', 'In-Reply-To', 'References'}
@@ -174,8 +174,10 @@ class IMAPClient(EmailDecoder):
                             new_max_uid = uid
 
                     if max_uid not in uids_in_response:
-                        new_max_uid = max(uids_in_response)
-
+                        if uids_in_response:
+                            new_max_uid = max(uids_in_response)
+                        else:
+                            new_max_uid = 0
                     if last_message_headers:
                         email_details = await self.fetch_message_details(imap_client, new_max_uid)
                         formatted_email_dict = self.format_email(email_details)

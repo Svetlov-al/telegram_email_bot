@@ -10,7 +10,7 @@ from email_service.schema import (
     EmailServiceSchema,
     ErrorSchema,
 )
-from infrastucture.exceptions import (
+from infrastructure.exceptions import (
     EmailAlreadyListeningError,
     EmailBoxByUsernameNotFoundError,
     EmailBoxWithFiltersAlreadyExist,
@@ -21,7 +21,7 @@ from infrastucture.exceptions import (
     EmailServicesNotFoundError,
     UserDataNotFoundError,
 )
-from infrastucture.tools import redis_client
+from infrastructure.tools import redis_client
 from ninja import Router
 
 emails = EmailBoxService

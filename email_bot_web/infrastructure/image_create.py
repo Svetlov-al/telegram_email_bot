@@ -3,7 +3,7 @@ import os
 import uuid
 
 from html2image import Html2Image
-from infrastucture.logger_config import logger
+from infrastructure.logger_config import logger
 from PIL import Image
 
 

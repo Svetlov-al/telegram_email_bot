@@ -107,7 +107,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 
 CELERY_BEAT_SCHEDULE = {
     'email-listening-status': {
-        'task': 'api.tasks.sync_email_listening_status',
+        'task': 'infrastructure.tasks.sync_email_listening_status',
         'schedule': timedelta(seconds=SCHEDULE_TASK_PERIOD),
     },
 }

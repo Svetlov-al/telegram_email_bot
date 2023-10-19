@@ -9,7 +9,7 @@ from email_service.schema import (
     EmailBoxOutputSchema,
     ErrorSchema,
 )
-from infrastucture.exceptions import UserAlreadyExistsError, UserNotFoundError
+from infrastructure.exceptions import UserAlreadyExistsError, UserNotFoundError
 from ninja import Router
 
 bot_users = BotUserService
