@@ -9,7 +9,7 @@ from email_service.schema import (
     EmailBoxRequestSchema,
     ErrorSchema,
 )
-from infrastucture.exceptions import (
+from infrastructure.exceptions import (
     BoxFilterCreationError,
     BoxFiltersNotFoundError,
     EmailBoxByUsernameNotFoundError,

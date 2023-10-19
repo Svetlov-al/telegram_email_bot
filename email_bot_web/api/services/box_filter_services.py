@@ -2,12 +2,12 @@ from api.repositories.repositories import BoxFilterRepository, EmailBoxRepositor
 from django.core.exceptions import ObjectDoesNotExist
 from email_service.models import BoxFilter
 from email_service.schema import BoxFilterSchema
-from infrastucture.exceptions import (
+from infrastructure.exceptions import (
     BoxFilterCreationError,
     BoxFiltersNotFoundError,
     EmailBoxByUsernameNotFoundError,
 )
-from infrastucture.tools import CACHE_PREFIX, cache_async, redis_client
+from infrastructure.tools import CACHE_PREFIX, cache_async, redis_client
 from ninja.errors import ValidationError
 
 box_filter_repo = BoxFilterRepository

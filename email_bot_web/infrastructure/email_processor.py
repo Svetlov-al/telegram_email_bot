@@ -4,8 +4,8 @@ from typing import Any
 from aioimaplib import aioimaplib
 from api.services.box_filter_services import BoxFilterService
 from email_service.schema import ImapEmailModel
-from infrastucture.logger_config import logger
-from infrastucture.tasks import handle_email_to_image
+from infrastructure.logger_config import logger
+from infrastructure.tasks import handle_email_to_image
 
 filters = BoxFilterService
 

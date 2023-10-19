@@ -3,10 +3,10 @@ import json
 from api.repositories.repositories import EmailBoxRepository
 from celery import shared_task
 from email_service.models import EmailBox
-from infrastucture.bot_utils import TelegramBotSender
-from infrastucture.image_create import EmailToImage
-from infrastucture.logger_config import logger
-from infrastucture.tools import redis_client
+from infrastructure.bot_utils import TelegramBotSender
+from infrastructure.image_create import EmailToImage
+from infrastructure.logger_config import logger
+from infrastructure.tools import CACHE_PREFIX, redis_client
 
 email_repo = EmailBoxRepository
 
@@ -31,6 +31,8 @@ def sync_email_listening_status() -> None:
                 user_data = json.loads(user_data_str)
                 user_data['listening'] = db_status
                 redis_client.set_key(user_key, json.dumps(user_data))
+                user_key_email_box = f'{CACHE_PREFIX}email_box_{email_box.user_id}_{email_box.email_username}'
+                redis_client.delete_key(user_key_email_box)
     return
 
 

@@ -16,8 +16,8 @@ from email_service.schema import (
     EmailBoxOutputSchema,
     EmailServiceSchema,
 )
-from infrastucture.email_processor import process_email
-from infrastucture.exceptions import (
+from infrastructure.email_processor import process_email
+from infrastructure.exceptions import (
     EmailAlreadyListeningError,
     EmailBoxByUsernameNotFoundError,
     EmailBoxCreationError,
@@ -30,9 +30,9 @@ from infrastucture.exceptions import (
     UserDataNotFoundError,
     UserNotFoundError,
 )
-from infrastucture.imap_listener import IMAPListener
-from infrastucture.logger_config import logger
-from infrastucture.tools import CACHE_PREFIX, cache_async, redis_client
+from infrastructure.imap_listener import IMAPListener
+from infrastructure.logger_config import logger
+from infrastructure.tools import CACHE_PREFIX, cache_async, redis_client
 
 user_repo = BotUserRepository
 email_repo = EmailBoxRepository

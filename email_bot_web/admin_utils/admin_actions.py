@@ -1,4 +1,4 @@
-from infrastucture.tools import CACHE_PREFIX, redis_client
+from infrastructure.tools import CACHE_PREFIX, redis_client
 
 
 def delete_email_boxes_and_clear_cache(modeladmin, request, queryset):
